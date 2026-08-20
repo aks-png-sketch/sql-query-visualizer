@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SQLFlow</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>SQLFlow</h1>
+          <p>Interactive Query Execution Visualizer</p>
+        </div>
+        <div class="topbar-actions">
+          <button id="presentationModeBtn" class="secondary" type="button" aria-pressed="false">Presentation Mode</button>
+          <button id="aboutProjectBtn" class="secondary" type="button">About</button>
+          <div class="version-badge">Version 1.1</div>
+          <div class="badge">Database Systems Lab</div>
+        </div>
+      </header>
+
+      <section class="intro-panel" aria-labelledby="introTitle">
+        <div>
+          <h2 id="introTitle">Write SQL. Run it. Watch the database think.</h2>
+          <p>Follow rows through execution stages, relational operations, transactions, algebra, and logical query plans.</p>
+        </div>
+        <div class="quick-start-actions" aria-label="Quick start examples">
+          <button type="button" data-quick-example="1">Try a Basic Query</button>
+          <button type="button" data-quick-example="17">Visualize a JOIN</button>
+          <button type="button" data-quick-example="11">Explore GROUP BY</button>
+        </div>
+      </section>
+
+      <main class="workspace">
+        <aside class="panel explorer-panel">
+          <div class="panel-heading">Database Explorer</div>
+          <div class="db-name">UniversityDB</div>
+
+          <div id="tableList" class="table-list" aria-label="Database tables"></div>
+
+          <div class="database-actions">
+            <button id="createTableBtn" class="create-table-button" type="button">+ Create Table</button>
+            <button id="clearCustomDataBtn" class="secondary" type="button">Clear Custom Data</button>
+          </div>
+
+          <div id="databaseMessage" class="database-message hidden" role="status"></div>
+
+          <div id="tablePreview" class="table-preview"></div>
+        </aside>
+
+        <section class="panel editor-panel">
+          <div class="editor-toolbar">
+            <div class="toolbar-title">SQL Editor</div>
+            <div class="toolbar-actions">
+              <select id="exampleQueries" aria-label="Example queries"></select>
+              <button id="runQueryBtn" type="button">Run Query</button>
+              <button id="resetQueryBtn" class="secondary" type="button">Reset</button>
+            </div>
+          </div>
+
+          <textarea id="sqlEditor" spellcheck="false" aria-label="SQL editor">SELECT name, department, cgpa
+FROM students
+WHERE cgpa > 8
+ORDER BY cgpa DESC;</textarea>
+        </section>
+
+        <aside class="panel flow-panel">
+          <div class="panel-heading">Execution Flow <button class="help-tip" type="button" aria-label="About execution flow" data-help="Shows the logical stages SQLFlow applies in order and the intermediate rows produced by each stage.">?</button></div>
+          <div id="executionFlow" class="execution-flow"></div>
+        </aside>
+      </main>
+
+      <section class="panel visualization-panel">
+        <div class="tab-row" aria-label="Visualization tabs">
+          <button class="tab active" data-tab="execution" type="button">Execution</button>
+          <button class="tab" data-tab="result" type="button">Final Result</button>
+          <button class="tab" data-tab="algebra" type="button">Relational Algebra</button>
+          <button class="tab" data-tab="tree" type="button">Query Tree</button>
+          <button class="tab" data-tab="explanation" type="button">Explanation</button>
+        </div>
+        <div class="concept-help" aria-label="SQL concept help">
+          <span>Concept help:</span>
+          <button class="help-tip" type="button" data-help="Relational algebra expresses a query as operators such as selection, projection, grouping, and join." aria-label="About relational algebra">Algebra ?</button>
+          <button class="help-tip" type="button" data-help="The query tree shows how logical operators feed data upward toward the final result." aria-label="About query trees">Tree ?</button>
+          <button class="help-tip" type="button" data-help="GROUP BY partitions rows into groups before aggregate values are calculated. HAVING filters those completed groups." aria-label="About grouping and having">GROUP BY / HAVING ?</button>
+          <button class="help-tip" type="button" data-help="A JOIN compares key columns from two table inputs and combines matching rows. LEFT JOIN also preserves unmatched left rows with NULL values." aria-label="About joins">JOIN ?</button>
+          <button class="help-tip" type="button" data-help="A savepoint names a snapshot inside an active transaction. ROLLBACK TO restores that snapshot without ending the transaction." aria-label="About savepoints">Savepoints ?</button>
+        </div>
+
+        <div class="bottom-toolbar">
+          <button id="prevStepBtn" type="button">Previous Step</button>
+          <button id="nextStepBtn" type="button">Next Step</button>
+          <button id="autoPlayBtn" type="button">Auto Play</button>
+          <button id="resetDemoBtn" class="secondary" type="button">Reset Demo</button>
+          <span class="shortcut-hint">Ctrl/Cmd+Enter run · Alt+←/→ step</span>
+          <span id="stepCounter">Step 1 of 4</span>
+        </div>
+
+        <div id="executionStageDescription" class="stage-description"></div>
+        <div id="executionTableContainer" class="table-container"></div>
+        <div id="finalResultContainer" class="result-container hidden"></div>
+        <div id="relationalAlgebraContainer" class="plan-container hidden"></div>
+        <div id="queryTreeContainer" class="plan-container hidden"></div>
+        <div id="explanationContainer" class="explanation-container hidden"></div>
+      </section>
+
+      <section class="panel transaction-panel">
+        <div class="transaction-heading">
+          <div>
+            <div class="panel-heading">Transaction Control <button class="help-tip" type="button" aria-label="About transactions" data-help="Transactions isolate pending custom-table changes until COMMIT. ROLLBACK discards them; savepoints restore an earlier working state.">?</button></div>
+            <h2>Transaction State</h2>
+          </div>
+          <span id="transactionStatus" class="transaction-status inactive">INACTIVE</span>
+        </div>
+        <div class="transaction-summary-grid">
+          <div><span class="summary-label">Savepoints</span><div id="transactionSavepoints">None</div></div>
+          <div><span class="summary-label">Pending changes</span><div id="transactionPending">0</div></div>
+          <div><span class="summary-label">Committed state</span><div id="transactionCommitted">No custom tables</div></div>
+          <div><span class="summary-label">Working state</span><div id="transactionWorking">No custom tables</div></div>
+        </div>
+        <div class="transaction-timeline-wrap">
+          <div class="summary-label">Timeline</div>
+          <div id="transactionTimeline" class="transaction-timeline"><div class="empty-state">No transaction operations yet.</div></div>
+        </div>
+      </section>
+    </div>
+
+    <div id="tableEditorModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="tableEditorTitle">
+      <section class="table-editor-modal">
+        <div class="table-editor-header">
+          <div>
+            <div class="panel-heading">Custom Table</div>
+            <h2 id="tableEditorTitle">Create Table</h2>
+          </div>
+          <button id="closeTableEditorBtn" class="secondary" type="button" aria-label="Close table editor">Close</button>
+        </div>
+
+        <div id="tableEditorError" class="error-box hidden" role="alert"></div>
+
+        <label class="form-field">
+          <span>Table name</span>
+          <input id="customTableName" type="text" autocomplete="off" placeholder="employees" />
+        </label>
+
+        <div class="editor-section-heading">
+          <h3>Columns</h3>
+          <button id="addColumnBtn" type="button">+ Add Column</button>
+        </div>
+        <div id="columnEditor" class="column-editor"></div>
+
+        <div class="editor-section-heading">
+          <h3>Rows</h3>
+          <div class="row-actions">
+            <button id="addCustomRowBtn" type="button">+ Add Row</button>
+            <button id="clearCustomRowsBtn" class="secondary" type="button">Clear Rows</button>
+          </div>
+        </div>
+        <div id="customRowsEditor" class="custom-rows-editor"></div>
+
+        <div class="table-editor-footer">
+          <div class="csv-actions">
+            <button id="importCsvBtn" class="secondary" type="button">Import CSV</button>
+            <input id="csvFileInput" class="hidden" type="file" accept=".csv,text/csv" />
+          </div>
+          <div>
+            <button id="cancelTableEditorBtn" class="secondary" type="button">Cancel</button>
+            <button id="saveCustomTableBtn" type="button">Save Table</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <div id="aboutModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+      <section class="about-modal">
+        <div class="table-editor-header">
+          <div><div class="panel-heading">Project Info</div><h2 id="aboutTitle">SQLFlow</h2></div>
+          <button id="closeAboutBtn" class="secondary" type="button">Close</button>
+        </div>
+        <p class="about-purpose">Interactive Query Execution Visualizer</p>
+        <p>An educational Database Systems tool for visualizing SQL query processing, relational operations, joins, aggregation, transactions, and relational algebra.</p>
+        <div class="feature-chips" aria-label="Supported feature categories">
+          <span>SELECT &amp; Filtering</span><span>Aggregation</span><span>JOINs</span><span>Custom Tables</span><span>DML</span><span>Transactions</span><span>Relational Algebra</span><span>Query Trees</span>
+        </div>
+      </section>
+    </div>
+
+    <div id="toastContainer" class="toast-container hidden" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="js/database.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/executor.js"></script>
+    <script src="js/queryplan.js"></script>
+    <script src="js/transactions.js"></script>
+    <script src="js/explanations.js"></script>
+    <script src="js/visualizer.js"></script>
+    <script src="js/examples.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

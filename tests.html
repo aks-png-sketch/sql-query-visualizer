@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SQLFlow Version 1.1 Tests</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; line-height: 1.5; }
+      .pass { color: #087830; }
+      .fail { color: #b42318; }
+      pre { background: #f4f4f4; padding: 1rem; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>SQLFlow Version 1.1 Tests</h1>
+    <p id="summary">Running…</p>
+    <pre id="testOutput"></pre>
+    <section id="visualizerFixture" hidden>
+      <div id="executionFlow"></div>
+      <button id="prevStepBtn"></button>
+      <button id="nextStepBtn"></button>
+      <button id="autoPlayBtn"></button>
+      <button class="tab" data-tab="execution"></button>
+      <button class="tab" data-tab="result"></button>
+      <button class="tab" data-tab="algebra"></button>
+      <button class="tab" data-tab="tree"></button>
+      <button class="tab" data-tab="explanation"></button>
+      <span id="stepCounter"></span>
+      <div id="executionStageDescription"></div>
+      <div id="executionTableContainer"></div>
+      <div id="finalResultContainer"></div>
+      <div id="relationalAlgebraContainer"></div>
+      <div id="queryTreeContainer"></div>
+      <div id="explanationContainer"></div>
+      <span id="transactionStatus"></span>
+      <div id="transactionSavepoints"></div>
+      <div id="transactionPending"></div>
+      <div id="transactionCommitted"></div>
+      <div id="transactionWorking"></div>
+      <div id="transactionTimeline"></div>
+      <button id="presentationModeBtn"></button>
+      <div id="toastContainer"></div>
+    </section>
+    <script src="js/database.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/executor.js"></script>
+    <script src="js/queryplan.js"></script>
+    <script src="js/transactions.js"></script>
+    <script src="js/explanations.js"></script>
+    <script src="js/visualizer.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="stress-tests.js"></script>
+    <script src="tests.js"></script>
+  </body>
+</html>

@@ -1,7 +1,28 @@
 (function (global) {
   'use strict';
 
-  const state = { presentationMode: false, toastTimer: null, keyboardHandler: null };
+  const THEME_KEY = 'sqlflow-theme';
+  const state = { presentationMode: false, theme: 'dark', toastTimer: null, keyboardHandler: null };
+
+  function setTheme(theme, documentObject, storageObject) {
+    const doc = documentObject || global.document;
+    const storage = storageObject === undefined ? global.localStorage : storageObject;
+    state.theme = theme === 'light' ? 'light' : 'dark';
+    if (doc && doc.documentElement) { doc.documentElement.dataset.theme = state.theme; doc.documentElement.style.colorScheme = state.theme; }
+    const button = doc && doc.getElementById('themeToggleBtn');
+    if (button) { const light = state.theme === 'light'; button.textContent = light ? 'Night Mode' : 'Day Mode'; button.setAttribute('aria-pressed', String(light)); button.setAttribute('aria-label', light ? 'Switch to night theme' : 'Switch to day theme'); }
+    if (storage) { try { storage.setItem(THEME_KEY, state.theme); } catch (error) { /* Theme still works when storage is unavailable. */ } }
+    return state.theme;
+  }
+  function initializeTheme(documentObject, storageObject, mediaObject) {
+    const storage = storageObject === undefined ? global.localStorage : storageObject;
+    let saved = null;
+    if (storage) { try { saved = storage.getItem(THEME_KEY); } catch (error) { saved = null; } }
+    const media = mediaObject || (global.matchMedia ? global.matchMedia('(prefers-color-scheme: light)') : null);
+    const selected = saved === 'light' || saved === 'dark' ? saved : media && media.matches ? 'light' : 'dark';
+    return setTheme(selected, documentObject, storage);
+  }
+  function toggleTheme(documentObject, storageObject) { return setTheme(state.theme === 'dark' ? 'light' : 'dark', documentObject, storageObject); }
 
   function setPresentationMode(enabled, documentObject) {
     const doc = documentObject || global.document;
@@ -91,6 +112,10 @@
     showToast: showToast,
     hideToast: hideToast,
     installKeyboardShortcuts: installKeyboardShortcuts,
-    performDemoReset: performDemoReset
+    performDemoReset: performDemoReset,
+    setTheme: setTheme,
+    initializeTheme: initializeTheme,
+    toggleTheme: toggleTheme,
+    THEME_KEY: THEME_KEY
   };
 })(typeof window !== 'undefined' ? window : globalThis);

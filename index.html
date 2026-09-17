@@ -14,9 +14,16 @@
           <p>Interactive Query Execution Visualizer</p>
         </div>
         <div class="topbar-actions">
+          <nav class="academic-nav" aria-label="Primary navigation">
+            <button class="secondary" type="button" data-academic-section="lab">SQL Lab</button>
+            <button class="secondary" type="button" data-academic-section="learn">Learn</button>
+            <button class="secondary" type="button" data-academic-section="help">Help</button>
+            <button class="secondary" type="button" data-academic-section="project">Project</button>
+            <button class="secondary" type="button" data-academic-section="developed">Developed By</button>
+          </nav>
+          <button id="themeToggleBtn" class="secondary" type="button" aria-label="Switch to day theme" aria-pressed="false">Day Mode</button>
           <button id="presentationModeBtn" class="secondary" type="button" aria-pressed="false">Presentation Mode</button>
-          <button id="aboutProjectBtn" class="secondary" type="button">About</button>
-          <div class="version-badge">Version 1.1</div>
+          <div class="version-badge">Version 1.2</div>
           <div class="badge">Database Systems Lab</div>
         </div>
       </header>
@@ -94,6 +101,7 @@ ORDER BY cgpa DESC;</textarea>
           <button id="nextStepBtn" type="button">Next Step</button>
           <button id="autoPlayBtn" type="button">Auto Play</button>
           <button id="resetDemoBtn" class="secondary" type="button">Reset Demo</button>
+          <button id="downloadReportBtn" class="secondary" type="button" disabled>Open Execution Report</button>
           <span class="shortcut-hint">Ctrl/Cmd+Enter run · Alt+←/→ step</span>
           <span id="stepCounter">Step 1 of 4</span>
         </div>
@@ -125,6 +133,48 @@ ORDER BY cgpa DESC;</textarea>
           <div id="transactionTimeline" class="transaction-timeline"><div class="empty-state">No transaction operations yet.</div></div>
         </div>
       </section>
+    </div>
+
+    <div id="academicModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="academicTitle">
+      <article class="academic-modal">
+        <header class="academic-header"><div><div class="panel-heading">SQLFlow Academic Project</div><h2 id="academicTitle">Learn</h2></div><button id="closeAcademicBtn" class="secondary" type="button">Close</button></header>
+        <section id="learnSection" class="academic-section">
+          <h3>Learn SQL with logical execution</h3><p>Conventional SQL teaching often describes the conceptual order as FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT. SQLFlow's displayed stages follow its actual executor: FROM → JOIN → WHERE → GROUP BY → SELECT / AGGREGATE → HAVING → DISTINCT → ORDER BY → LIMIT. Only stages used by a query appear. SQLFlow calculates grouped projections before filtering those groups with HAVING; the final rows still reflect the HAVING condition.</p>
+          <div id="learnTopics" class="learn-grid"></div>
+          <section class="video-placeholder" aria-label="Project demo video placeholder"><h3>Project Demo Video</h3><p>A recorded walkthrough can be embedded or linked here for final submission.</p></section>
+          <section><h3>References</h3><ul><li>Silberschatz, Korth, and Sudarshan — <cite>Database System Concepts</cite>.</li><li>Elmasri and Navathe — <cite>Fundamentals of Database Systems</cite>.</li><li><a href="https://www.postgresql.org/docs/current/tutorial-sql.html">PostgreSQL SQL Tutorial</a> for general SQL concepts.</li><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage">MDN Web Docs</a> for browser storage APIs.</li></ul></section>
+        </section>
+        <section id="helpSection" class="academic-section hidden">
+          <h3>Help and quick start</h3><ol class="workflow-list"><li>Choose a built-in table or create/import custom data.</li><li>Write SQL or select a built-in example.</li><li>Run the query with Run Query or Ctrl/Cmd + Enter.</li><li>Inspect stages with Previous, Next, or Auto Play.</li><li>Open Explanation, Relational Algebra, or Query Tree.</li><li>Download the execution report.</li></ol>
+          <div class="help-grid">
+            <section><h4>Supported input</h4><p>Enter one supported statement at a time: SELECT, INSERT, UPDATE, DELETE, BEGIN, COMMIT, ROLLBACK, SAVEPOINT, or ROLLBACK TO. SELECT supports FROM, INNER/LEFT JOIN with equality ON, WHERE with comparisons and AND/OR/parentheses, GROUP BY, HAVING, DISTINCT, ORDER BY, LIMIT, and COUNT/SUM/AVG/MIN/MAX. Data changes apply to custom tables.</p></section>
+            <section><h4>Current limits</h4><p>SQLFlow does not implement subqueries, CTEs, window functions, RIGHT/FULL OUTER JOIN, physical plans, index simulation, cost-based optimization, backend connections, or concurrency/locking.</p></section>
+            <section><h4>Input and examples</h4><p>SQLFlow accepts supported SELECT, DML, and transaction statements. Pick an example, edit it in the SQL editor, then run one statement at a time.</p></section>
+            <section><h4>Execution navigation</h4><p>Previous and Next select intermediate datasets. Auto Play advances automatically. Final Result shows the completed output.</p></section>
+            <section><h4>Reading visualizations</h4><p>Execution tables show rows after each operation. JOIN view highlights compared keys. Algebra summarizes operators, Query Tree shows the logical plan, and Explanation narrates measured results.</p></section>
+            <section><h4>Transactions</h4><p>BEGIN opens a working copy; COMMIT persists it; ROLLBACK discards it. SAVEPOINT and ROLLBACK TO manage checkpoints.</p></section>
+            <section><h4>Custom data and reset</h4><p>Create typed tables or import CSV in Database Explorer. Reset Demo restores the default query and preserves custom tables unless Clear Custom Data is explicitly confirmed.</p></section>
+            <section><h4>Presentation and reports</h4><p>Presentation Mode emphasizes teaching views. Open Execution Report shows the report with separate Download TXT Report and Print / Save as PDF actions.</p></section>
+            <section><h4>Keyboard shortcuts</h4><p>Ctrl/Cmd+Enter runs SQL, Alt+Right/Left changes stage, and Escape closes an open panel or Presentation Mode.</p></section>
+          </div>
+        </section>
+        <section id="projectSection" class="academic-section hidden">
+          <h3>Project overview</h3><dl class="academic-facts"><div><dt>Problem Statement</dt><dd>Students can execute SQL queries but often cannot see how rows change through each logical operation.</dd></div><div><dt>Objective</dt><dd>Build an interactive browser-based system that visualizes SQL execution step-by-step and connects SQL syntax with relational operations and intermediate results.</dd></div><div><dt>Area</dt><dd>Core Database Systems / Database Management Systems</dd></div><div><dt>Activity Type</dt><dd>Innovation Sprint / Working Prototype</dd></div></dl>
+          <h3>System architecture</h3><div class="architecture-flow" aria-label="System processing pipeline"><span>SQL Input</span><b>↓</b><span>Parser</span><b>↓</b><span>Parsed AST</span><b>↓</b><span>Execution Engine</span><b>↓</b><span>Stages + Metadata</span><b>↓</b><span>Visualization / Educational Output Layer</span><b>↓</b><span>Final Result / Explanation / Relational Algebra / Query Tree / Execution Report</span></div>
+          <h3>Module design</h3><div id="moduleDesign" class="module-grid"></div>
+          <h3>Working methodology</h3><ol><li>The user enters one supported SQL statement.</li><li>The token-aware parser validates syntax and creates a structured AST.</li><li>The executor reads SQLFlow's in-browser tables and records rows, columns, and operation metadata at each supported logical stage.</li><li>The visualizer shows intermediate relations and measured row-count changes.</li><li>The same structured result feeds Final Result, deterministic Explanation, and the downloadable execution report. SELECT queries also produce relational algebra and a logical query tree.</li><li>INSERT, UPDATE, DELETE, and transaction controls use the working-copy and snapshot mechanism for pending changes, savepoints, commit, and rollback.</li></ol>
+          <h3>Testing and reliability</h3><p><strong>Verified: 726 of 726 browser tests passed for Version 1.2.</strong> Coverage includes parsing, execution, filtering, sorting, aggregation, JOINs, transactions, explanations, reports, themes, academic navigation, query-tree synchronization, custom tables, malformed SQL, safe rendering, UI state, and regressions.</p>
+          <h3>Creative features</h3><p>Intermediate datasets, JOIN comparison highlighting, synchronized query trees, deterministic English explanations, relational algebra, custom tables and CSV, transaction snapshots and savepoints, Presentation Mode, keyboard navigation, and extensive browser testing extend SQLFlow beyond a basic query executor.</p>
+          <h3>Challenges and solutions</h3><ul><li>A token-aware parser handles supported SQL without a backend dependency.</li><li>Qualified row provenance preserves aliases and JOIN correctness.</li><li>Immutable stage metadata synchronizes tables, trees, algebra, explanations, and reports.</li><li>Transaction snapshots make rollback and savepoints deterministic.</li><li>Safe DOM APIs prevent table values and SQL text from becoming executable HTML.</li></ul>
+          <h3>Future enhancements</h3><p>Subqueries, CTEs, window functions, RIGHT/FULL JOIN, physical plans, index simulation, cost estimation, backend connections, richer exports, and drag/zoom trees remain future work.</p>
+          <h3>Conclusion</h3><p>SQLFlow demonstrates how SQL statements transform data through logical stages, helping bridge the gap between SQL syntax and internal database operations.</p>
+        </section>
+        <section id="developedSection" class="academic-section hidden"><h3>Developed By</h3><div class="people-grid"><section class="person-card"><img id="studentPhoto" alt="Photograph of Manavalla Venkata Akshay Sai" /><h4 id="studentName"></h4><p><strong>Register number:</strong> <span id="studentRegister"></span></p><p><strong>Project:</strong> <span id="studentProject"></span></p><p><strong>Course:</strong> <span id="studentCourse"></span></p></section><section class="person-card"><div class="guide-mark" aria-hidden="true">DBMS</div><h4>Dr. Swaminathan A</h4><p>Assistant Professor</p><p>Project Guide</p></section></div></section>
+      </article>
+    </div>
+
+    <div id="reportModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+      <article class="report-modal"><header class="academic-header no-print"><h2 id="reportTitle">SQLFlow Execution Report</h2><button id="closeReportBtn" class="secondary" type="button">Close Report</button></header><div class="report-actions no-print"><button id="downloadTxtBtn" type="button">Download TXT Report (.txt)</button><button id="printReportBtn" class="secondary" type="button">Print / Save as PDF</button></div><div id="printableReport" class="printable-report"></div></article>
     </div>
 
     <div id="tableEditorModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="tableEditorTitle">
@@ -173,20 +223,6 @@ ORDER BY cgpa DESC;</textarea>
 
     </div>
 
-    <div id="aboutModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
-      <section class="about-modal">
-        <div class="table-editor-header">
-          <div><div class="panel-heading">Project Info</div><h2 id="aboutTitle">SQLFlow</h2></div>
-          <button id="closeAboutBtn" class="secondary" type="button">Close</button>
-        </div>
-        <p class="about-purpose">Interactive Query Execution Visualizer</p>
-        <p>An educational Database Systems tool for visualizing SQL query processing, relational operations, joins, aggregation, transactions, and relational algebra.</p>
-        <div class="feature-chips" aria-label="Supported feature categories">
-          <span>SELECT &amp; Filtering</span><span>Aggregation</span><span>JOINs</span><span>Custom Tables</span><span>DML</span><span>Transactions</span><span>Relational Algebra</span><span>Query Trees</span>
-        </div>
-      </section>
-    </div>
-
     <div id="toastContainer" class="toast-container hidden" aria-live="polite" aria-atomic="true"></div>
 
     <script src="js/database.js"></script>
@@ -195,6 +231,9 @@ ORDER BY cgpa DESC;</textarea>
     <script src="js/queryplan.js"></script>
     <script src="js/transactions.js"></script>
     <script src="js/explanations.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/academic.js"></script>
     <script src="js/visualizer.js"></script>
     <script src="js/examples.js"></script>
     <script src="js/ui.js"></script>

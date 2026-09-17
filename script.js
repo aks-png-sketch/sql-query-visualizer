@@ -103,7 +103,7 @@
       if (table.isCustom) {
         const actions = document.createElement('div');
         actions.className = 'table-item-actions';
-        [['Edit', function () { openTableEditor(table.name); }], ['Export', function () { downloadCustomTable(table.name); }], ['Delete', function () { deleteTableWithConfirmation(table.name); }]].forEach(function (action) {
+        [['Edit', function () { openTableEditor(table.name); }], ['Download CSV', function () { downloadCustomTable(table.name); }], ['Delete', function () { deleteTableWithConfirmation(table.name); }]].forEach(function (action) {
           const actionButton = document.createElement('button');
           actionButton.type = 'button';
           actionButton.className = 'secondary';
@@ -312,12 +312,14 @@
 
   function showFriendlyError(message) {
     global.SqlFlow.visualizer.showError(message);
+    global.SqlFlow.academic.setResult(null);
     global.SqlFlow.ui.showToast(message, 'error', 4500);
   }
   function runCurrentQuery() {
     const editor = element('sqlEditor');
     if (!editor) { return; }
-    const queryText = editor.value.trim();
+    const exactInput = editor.value;
+    const queryText = exactInput.trim();
     global.SqlFlow.visualizer.resetVisualization();
     if (!queryText) { showFriendlyError('Please enter a valid SQL query before running it.'); return; }
     try {
@@ -336,6 +338,10 @@
         refreshDatabaseExplorer(selectedTableName);
       }
       result.explanation = global.SqlFlow.explanations.build(result);
+      result.inputSql = exactInput;
+      const selectedIndex = Number(element('exampleQueries').value);
+      result.selectedExample = global.SqlFlow.selectedExampleLabel(exactInput, selectedIndex);
+      global.SqlFlow.academic.setResult(result, { sql: exactInput, selectedExample: result.selectedExample });
       global.SqlFlow.visualizer.showExecutionResult(result);
       global.SqlFlow.visualizer.renderTransactionState(global.SqlFlow.transactions.getState());
       const status = global.SqlFlow.transactions.getState();
@@ -352,7 +358,7 @@
       global.SqlFlow.transactions.rollback();
     }
     global.SqlFlow.ui.performDemoReset({
-      closePanels: function () { closeTableEditor(); element('aboutModal').classList.add('hidden'); },
+      closePanels: function () { closeTableEditor(); global.SqlFlow.academic.close(); global.SqlFlow.academic.closeReport(); },
       reset: function () {
         element('exampleQueries').value = '0';
         element('sqlEditor').value = defaultQuery;
@@ -381,7 +387,8 @@
 
   function closeTransientPanel() {
     if (!element('tableEditorModal').classList.contains('hidden')) { closeTableEditor(); return true; }
-    if (!element('aboutModal').classList.contains('hidden')) { element('aboutModal').classList.add('hidden'); return true; }
+    if (!element('reportModal').classList.contains('hidden')) { global.SqlFlow.academic.closeReport(); return true; }
+    if (!element('academicModal').classList.contains('hidden')) { global.SqlFlow.academic.close(); return true; }
     return false;
   }
 
@@ -411,10 +418,12 @@
     element('createTableBtn').addEventListener('click', function () { openTableEditor(null); });
     element('clearCustomDataBtn').addEventListener('click', clearCustomData);
     element('resetDemoBtn').addEventListener('click', resetDemo);
+    element('themeToggleBtn').addEventListener('click', function () { global.SqlFlow.ui.toggleTheme(); });
     element('presentationModeBtn').addEventListener('click', function () { global.SqlFlow.ui.togglePresentationMode(); });
-    element('aboutProjectBtn').addEventListener('click', function () { element('aboutModal').classList.remove('hidden'); element('closeAboutBtn').focus(); });
-    element('closeAboutBtn').addEventListener('click', function () { element('aboutModal').classList.add('hidden'); });
-    element('aboutModal').addEventListener('click', function (event) { if (event.target === element('aboutModal')) { element('aboutModal').classList.add('hidden'); } });
+    document.querySelectorAll('[data-academic-section]').forEach(function (button) { button.addEventListener('click', function () { global.SqlFlow.academic.open(button.dataset.academicSection); }); });
+    element('closeAcademicBtn').addEventListener('click', function () { global.SqlFlow.academic.close(); });
+    element('academicModal').addEventListener('click', function (event) { if (event.target === element('academicModal')) { global.SqlFlow.academic.close(); } });
+    global.SqlFlow.academic.bindReportControls();
     document.querySelectorAll('[data-quick-example]').forEach(function (button) {
       button.addEventListener('click', function () {
         const index = Number(button.dataset.quickExample);
@@ -455,7 +464,9 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    global.SqlFlow.ui.initializeTheme();
     populateExamples();
+    global.SqlFlow.academic.initialize({ tryQuery: function (query) { element('sqlEditor').value = query; runCurrentQuery(); } });
     refreshDatabaseExplorer('students');
     const storageError = global.SqlFlow.database.getLastStorageError();
     if (storageError) { showDatabaseMessage(storageError); }

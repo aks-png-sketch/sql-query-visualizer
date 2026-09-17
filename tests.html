@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SQLFlow Version 1.1 Tests</title>
+    <title>SQLFlow Version 1.2 Tests</title>
     <link rel="stylesheet" href="style.css" />
     <style>
       body { font-family: system-ui, sans-serif; margin: 2rem; line-height: 1.5; }
@@ -13,7 +13,7 @@
     </style>
   </head>
   <body>
-    <h1>SQLFlow Version 1.1 Tests</h1>
+    <h1>SQLFlow Version 1.2 Tests</h1>
     <p id="summary">Running…</p>
     <pre id="testOutput"></pre>
     <section id="visualizerFixture" hidden>
@@ -40,17 +40,32 @@
       <div id="transactionWorking"></div>
       <div id="transactionTimeline"></div>
       <button id="presentationModeBtn"></button>
+      <button id="themeToggleBtn"></button>
+      <button id="downloadReportBtn">Open Execution Report</button>
       <div id="toastContainer"></div>
+      <textarea id="sqlEditor"></textarea>
+      <div id="academicModal" class="hidden"><h2 id="academicTitle"></h2><button id="closeAcademicBtn"></button><section id="learnSection"></section><section id="helpSection" class="hidden"><ol class="workflow-list"><li>Choose data</li><li>Write SQL</li><li>Run query</li><li>Inspect stages</li><li>Open Explanation / Algebra / Query Tree</li><li>Download report</li></ol><p>Examples Auto Play Final Result JOIN transactions custom tables CSV Reset Presentation Mode keyboard shortcuts</p></section><section id="projectSection" class="hidden"></section><section id="developedSection" class="hidden"></section><div id="learnTopics"></div><div id="moduleDesign"></div><img id="studentPhoto" /><span id="studentName"></span><span id="studentRegister"></span><span id="studentProject"></span><span id="studentCourse"></span></div>
+      <div id="reportModal" class="hidden"><button id="closeReportBtn">Close Report</button><button id="downloadTxtBtn">Download TXT Report (.txt)</button><button id="printReportBtn">Print / Save as PDF</button><div id="printableReport" class="printable-report"></div></div>
     </section>
+    <script>
+      window.sqlflowBrowserErrors = [];
+      window.addEventListener('error', function (event) { window.sqlflowBrowserErrors.push(event.message || 'Resource load error'); });
+      window.addEventListener('unhandledrejection', function (event) { window.sqlflowBrowserErrors.push(String(event.reason)); });
+    </script>
     <script src="js/database.js"></script>
     <script src="js/parser.js"></script>
     <script src="js/executor.js"></script>
     <script src="js/queryplan.js"></script>
     <script src="js/transactions.js"></script>
     <script src="js/explanations.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/academic.js"></script>
+    <script src="js/examples.js"></script>
     <script src="js/visualizer.js"></script>
     <script src="js/ui.js"></script>
     <script src="stress-tests.js"></script>
+    <script src="compliance-tests.js"></script>
     <script src="tests.js"></script>
   </body>
 </html>

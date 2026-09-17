@@ -126,4 +126,8 @@
 
   global.SqlFlow = global.SqlFlow || {};
   global.SqlFlow.examples = examples;
+  global.SqlFlow.selectedExampleLabel = function (sql, index) {
+    const selected = examples[index];
+    return selected && sql === selected.query ? selected.label : 'Custom / modified query';
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

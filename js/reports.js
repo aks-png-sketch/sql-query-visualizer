@@ -30,7 +30,7 @@
     const settings = options || {};
     const explanations = result.explanation || global.SqlFlow.explanations.build(result);
     return {
-      title: 'SQLFLOW EXECUTION REPORT', project: 'SQLFlow', version: '1.2', generatedAt: settings.generatedAt || new Date().toLocaleString(),
+      title: 'SQLFLOW EXECUTION REPORT', project: 'SQLFlow', version: global.SqlFlow.config.version, generatedAt: settings.generatedAt || new Date().toLocaleString(),
       queryType: result.statementType || (result.ast && result.ast.type === 'SelectQuery' ? 'SELECT' : 'STATEMENT'), stageCount: result.stages.length,
       input: { sql: settings.sql !== undefined ? String(settings.sql) : result.inputSql || '', selectedExample: settings.selectedExample || result.selectedExample || 'Custom / modified query', sourceTables: sourceTables(result.ast) },
       steps: result.stages.map(function (stage, index) {

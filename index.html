@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
     <title>SQLFlow</title>
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -18,12 +19,13 @@
             <button class="secondary" type="button" data-academic-section="lab">SQL Lab</button>
             <button class="secondary" type="button" data-academic-section="learn">Learn</button>
             <button class="secondary" type="button" data-academic-section="help">Help</button>
+            <button class="secondary" type="button" data-academic-section="quiz">QUIZ</button>
             <button class="secondary" type="button" data-academic-section="project">Project</button>
             <button class="secondary" type="button" data-academic-section="developed">Developed By</button>
           </nav>
           <button id="themeToggleBtn" class="secondary" type="button" aria-label="Switch to day theme" aria-pressed="false">Day Mode</button>
           <button id="presentationModeBtn" class="secondary" type="button" aria-pressed="false">Presentation Mode</button>
-          <div class="version-badge">Version 1.2</div>
+          <div class="version-badge">Version 1.3</div>
           <div class="badge">Database Systems Lab</div>
         </div>
       </header>
@@ -32,11 +34,13 @@
         <div>
           <h2 id="introTitle">Write SQL. Run it. Watch the database think.</h2>
           <p>Follow rows through execution stages, relational operations, transactions, algebra, and logical query plans.</p>
+          <p class="learning-path">Learn a concept → visualize its SQL → practice a quiz → review mistakes.</p>
         </div>
         <div class="quick-start-actions" aria-label="Quick start examples">
           <button type="button" data-quick-example="1">Try a Basic Query</button>
           <button type="button" data-quick-example="17">Visualize a JOIN</button>
           <button type="button" data-quick-example="11">Explore GROUP BY</button>
+          <button type="button" id="startGuidedTour">Start Guided Tour</button>
         </div>
       </section>
 
@@ -107,6 +111,7 @@ ORDER BY cgpa DESC;</textarea>
         </div>
 
         <div id="executionStageDescription" class="stage-description"></div>
+        <div id="simulationContainer" class="hidden"></div>
         <div id="executionTableContainer" class="table-container"></div>
         <div id="finalResultContainer" class="result-container hidden"></div>
         <div id="relationalAlgebraContainer" class="plan-container hidden"></div>
@@ -141,11 +146,13 @@ ORDER BY cgpa DESC;</textarea>
         <section id="learnSection" class="academic-section">
           <h3>Learn SQL with logical execution</h3><p>Conventional SQL teaching often describes the conceptual order as FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT. SQLFlow's displayed stages follow its actual executor: FROM → JOIN → WHERE → GROUP BY → SELECT / AGGREGATE → HAVING → DISTINCT → ORDER BY → LIMIT. Only stages used by a query appear. SQLFlow calculates grouped projections before filtering those groups with HAVING; the final rows still reflect the HAVING condition.</p>
           <div id="learnTopics" class="learn-grid"></div>
-          <section class="video-placeholder" aria-label="Project demo video placeholder"><h3>Project Demo Video</h3><p>A recorded walkthrough can be embedded or linked here for final submission.</p></section>
+          <section id="joinVideoLesson" class="join-video-lesson" aria-labelledby="joinVideoTitle"><h3 id="joinVideoTitle">JOIN video tutorial</h3><p>Joins in SQL — Neso Academy. If the player is blocked by browser or YouTube restrictions, use the exact Watch on YouTube link below.</p><div class="responsive-video"><iframe src="https://www.youtube-nocookie.com/embed/h4EQBAzW3m4" title="Joins in SQL — Neso Academy" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div><p><a href="https://youtu.be/h4EQBAzW3m4?si=1JtslSqT4QU3ZziA" target="_blank" rel="noopener noreferrer">Watch on YouTube</a></p><div class="simulation-controls"><button type="button" data-join-learning="lab">Run JOIN Simulation</button><button type="button" data-join-learning="help">JOIN Help</button><button type="button" data-join-learning="quiz">Practice JOIN Questions</button></div></section>
+          <p class="learn-note">The JOIN video is an external instructional lesson. A student-made project demonstration recording is not included.</p>
           <section><h3>References</h3><ul><li>Silberschatz, Korth, and Sudarshan — <cite>Database System Concepts</cite>.</li><li>Elmasri and Navathe — <cite>Fundamentals of Database Systems</cite>.</li><li><a href="https://www.postgresql.org/docs/current/tutorial-sql.html">PostgreSQL SQL Tutorial</a> for general SQL concepts.</li><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage">MDN Web Docs</a> for browser storage APIs.</li></ul></section>
         </section>
         <section id="helpSection" class="academic-section hidden">
-          <h3>Help and quick start</h3><ol class="workflow-list"><li>Choose a built-in table or create/import custom data.</li><li>Write SQL or select a built-in example.</li><li>Run the query with Run Query or Ctrl/Cmd + Enter.</li><li>Inspect stages with Previous, Next, or Auto Play.</li><li>Open Explanation, Relational Algebra, or Query Tree.</li><li>Download the execution report.</li></ol>
+          <h3>Interactive SQLFlow Manual</h3><details><summary>Quick-start checklist</summary><ol class="workflow-list"><li>Choose a built-in table or create/import custom data.</li><li>Write SQL or select a built-in example.</li><li>Run the query with Run Query or Ctrl/Cmd + Enter.</li><li>Inspect stages with Previous, Next, or Auto Play.</li><li>Open Explanation, Relational Algebra, or Query Tree.</li><li>Download the execution report.</li></ol></details>
+          <div id="interactiveHelp"></div>
           <div class="help-grid">
             <section><h4>Supported input</h4><p>Enter one supported statement at a time: SELECT, INSERT, UPDATE, DELETE, BEGIN, COMMIT, ROLLBACK, SAVEPOINT, or ROLLBACK TO. SELECT supports FROM, INNER/LEFT JOIN with equality ON, WHERE with comparisons and AND/OR/parentheses, GROUP BY, HAVING, DISTINCT, ORDER BY, LIMIT, and COUNT/SUM/AVG/MIN/MAX. Data changes apply to custom tables.</p></section>
             <section><h4>Current limits</h4><p>SQLFlow does not implement subqueries, CTEs, window functions, RIGHT/FULL OUTER JOIN, physical plans, index simulation, cost-based optimization, backend connections, or concurrency/locking.</p></section>
@@ -158,18 +165,20 @@ ORDER BY cgpa DESC;</textarea>
             <section><h4>Keyboard shortcuts</h4><p>Ctrl/Cmd+Enter runs SQL, Alt+Right/Left changes stage, and Escape closes an open panel or Presentation Mode.</p></section>
           </div>
         </section>
+        <section id="quizSection" class="academic-section hidden"></section>
         <section id="projectSection" class="academic-section hidden">
           <h3>Project overview</h3><dl class="academic-facts"><div><dt>Problem Statement</dt><dd>Students can execute SQL queries but often cannot see how rows change through each logical operation.</dd></div><div><dt>Objective</dt><dd>Build an interactive browser-based system that visualizes SQL execution step-by-step and connects SQL syntax with relational operations and intermediate results.</dd></div><div><dt>Area</dt><dd>Core Database Systems / Database Management Systems</dd></div><div><dt>Activity Type</dt><dd>Innovation Sprint / Working Prototype</dd></div></dl>
           <h3>System architecture</h3><div class="architecture-flow" aria-label="System processing pipeline"><span>SQL Input</span><b>↓</b><span>Parser</span><b>↓</b><span>Parsed AST</span><b>↓</b><span>Execution Engine</span><b>↓</b><span>Stages + Metadata</span><b>↓</b><span>Visualization / Educational Output Layer</span><b>↓</b><span>Final Result / Explanation / Relational Algebra / Query Tree / Execution Report</span></div>
           <h3>Module design</h3><div id="moduleDesign" class="module-grid"></div>
+          <h3>Interactive learning modules</h3><p>simulation.js replays executor instrumentation; help.js controls the searchable manual and guided tutorials; quiz-bank.js contains authored questions and isolated fixtures; quiz-engine.js handles grading and persistence; quiz.js renders attempts and reviews.</p>
           <h3>Working methodology</h3><ol><li>The user enters one supported SQL statement.</li><li>The token-aware parser validates syntax and creates a structured AST.</li><li>The executor reads SQLFlow's in-browser tables and records rows, columns, and operation metadata at each supported logical stage.</li><li>The visualizer shows intermediate relations and measured row-count changes.</li><li>The same structured result feeds Final Result, deterministic Explanation, and the downloadable execution report. SELECT queries also produce relational algebra and a logical query tree.</li><li>INSERT, UPDATE, DELETE, and transaction controls use the working-copy and snapshot mechanism for pending changes, savepoints, commit, and rollback.</li></ol>
-          <h3>Testing and reliability</h3><p><strong>Verified: 726 of 726 browser tests passed for Version 1.2.</strong> Coverage includes parsing, execution, filtering, sorting, aggregation, JOINs, transactions, explanations, reports, themes, academic navigation, query-tree synchronization, custom tables, malformed SQL, safe rendering, UI state, and regressions.</p>
+          <h3>Testing and reliability</h3><p><strong>Verified locally: 1010 of 1010 regression tests passed for the Version 1.3 candidate.</strong> The previous Version 1.2 baseline passed 726 tests. Coverage includes the SQL engine, transactions, reports, safe rendering, quiz fixture keys and grading, action replay, state cleanup, and learning navigation. The separate dependency-free Chrome interaction suite exercises actual buttons, tutorials, downloads, and responsive dialogs.</p>
           <h3>Creative features</h3><p>Intermediate datasets, JOIN comparison highlighting, synchronized query trees, deterministic English explanations, relational algebra, custom tables and CSV, transaction snapshots and savepoints, Presentation Mode, keyboard navigation, and extensive browser testing extend SQLFlow beyond a basic query executor.</p>
           <h3>Challenges and solutions</h3><ul><li>A token-aware parser handles supported SQL without a backend dependency.</li><li>Qualified row provenance preserves aliases and JOIN correctness.</li><li>Immutable stage metadata synchronizes tables, trees, algebra, explanations, and reports.</li><li>Transaction snapshots make rollback and savepoints deterministic.</li><li>Safe DOM APIs prevent table values and SQL text from becoming executable HTML.</li></ul>
           <h3>Future enhancements</h3><p>Subqueries, CTEs, window functions, RIGHT/FULL JOIN, physical plans, index simulation, cost estimation, backend connections, richer exports, and drag/zoom trees remain future work.</p>
           <h3>Conclusion</h3><p>SQLFlow demonstrates how SQL statements transform data through logical stages, helping bridge the gap between SQL syntax and internal database operations.</p>
         </section>
-        <section id="developedSection" class="academic-section hidden"><h3>Developed By</h3><div class="people-grid"><section class="person-card"><img id="studentPhoto" alt="Photograph of Manavalla Venkata Akshay Sai" /><h4 id="studentName"></h4><p><strong>Register number:</strong> <span id="studentRegister"></span></p><p><strong>Project:</strong> <span id="studentProject"></span></p><p><strong>Course:</strong> <span id="studentCourse"></span></p></section><section class="person-card"><div class="guide-mark" aria-hidden="true">DBMS</div><h4>Dr. Swaminathan A</h4><p>Assistant Professor</p><p>Project Guide</p></section></div></section>
+        <section id="developedSection" class="academic-section hidden"><h3>Developed By</h3><div class="people-grid"><section class="person-card"><img id="studentPhoto" alt="Photograph of Manavalla Venkata Akshay Sai" /><h4 id="studentName"></h4><p><strong>Register number:</strong> <span id="studentRegister"></span></p><p><strong>Project:</strong> <span id="studentProject"></span></p><p><strong>Course:</strong> <span id="studentCourse"></span></p></section><section class="person-card"><img class="guide-photo" src="assets/guide-photo.png" alt="Photograph of Dr. Swaminathan A, project guide" /><h4>Dr. Swaminathan A</h4><p>Assistant Professor</p><p>Project Guide</p></section></div></section>
       </article>
     </div>
 
@@ -234,6 +243,13 @@ ORDER BY cgpa DESC;</textarea>
     <script src="js/config.js"></script>
     <script src="js/reports.js"></script>
     <script src="js/academic.js"></script>
+    <script src="js/simulation.js"></script>
+    <script src="js/help.js"></script>
+    <script src="js/quiz-bank.js"></script>
+    <script src="js/quiz-fixtures.js"></script>
+    <script src="js/quiz-expansion.js"></script>
+    <script src="js/quiz-engine.js"></script>
+    <script src="js/quiz.js"></script>
     <script src="js/visualizer.js"></script>
     <script src="js/examples.js"></script>
     <script src="js/ui.js"></script>

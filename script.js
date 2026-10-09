@@ -37,6 +37,19 @@
       const category = categories.find(function (item) { return index >= item.range[0] && index < item.range[1]; });
       (category ? groups[category.label] : select).appendChild(option);
     });
+    const custom = document.createElement('option');
+    custom.value = '-1';
+    custom.textContent = 'Custom / lesson query';
+    custom.disabled = true;
+    select.appendChild(custom);
+  }
+
+  function syncExampleSelection() {
+    const editor = element('sqlEditor');
+    const select = element('exampleQueries');
+    if (!editor || !select) { return; }
+    const index = global.SqlFlow.examples.findIndex(function (example) { return editor.value === example.query; });
+    select.value = String(index);
   }
 
   function showDatabaseMessage(message) {
@@ -313,12 +326,14 @@
   function showFriendlyError(message) {
     global.SqlFlow.visualizer.showError(message);
     global.SqlFlow.academic.setResult(null);
+    const helpButton = document.createElement('button'); helpButton.type='button'; helpButton.textContent='Help With This Error'; helpButton.addEventListener('click', function () { global.SqlFlow.help.errorHelp(message); }); element('executionTableContainer').appendChild(helpButton);
     global.SqlFlow.ui.showToast(message, 'error', 4500);
   }
   function runCurrentQuery() {
     const editor = element('sqlEditor');
     if (!editor) { return; }
     const exactInput = editor.value;
+    syncExampleSelection();
     const queryText = exactInput.trim();
     global.SqlFlow.visualizer.resetVisualization();
     if (!queryText) { showFriendlyError('Please enter a valid SQL query before running it.'); return; }
@@ -349,9 +364,10 @@
       global.SqlFlow.ui.showToast('Statement executed successfully · ' + result.result.length + ' rows · ' + result.stages.length + ' stages.' + statusSuffix, 'success');
     } catch (error) { showFriendlyError(error.message || 'An unexpected SQL error occurred. Please check the query and try again.'); }
   }
-  function resetEditor() { element('sqlEditor').value = defaultQuery; runCurrentQuery(); }
+  function resetEditor() { element('sqlEditor').value = defaultQuery; syncExampleSelection(); runCurrentQuery(); }
 
   function resetDemo() {
+    if (global.SqlFlow.help) { global.SqlFlow.help.stop(false); }
     const transactionState = global.SqlFlow.transactions.getState();
     if (transactionState.active) {
       if (!global.confirm('Reset Demo will roll back the active transaction. Continue?')) { return false; }
@@ -386,6 +402,7 @@
   }
 
   function closeTransientPanel() {
+    if (global.SqlFlow.help && global.SqlFlow.help.isTourActive()) { global.SqlFlow.help.stop(false); return true; }
     if (!element('tableEditorModal').classList.contains('hidden')) { closeTableEditor(); return true; }
     if (!element('reportModal').classList.contains('hidden')) { global.SqlFlow.academic.closeReport(); return true; }
     if (!element('academicModal').classList.contains('hidden')) { global.SqlFlow.academic.close(); return true; }
@@ -415,12 +432,13 @@
       const example = global.SqlFlow.examples[Number(event.target.value)];
       if (example) { element('sqlEditor').value = example.query; runCurrentQuery(); }
     });
+    element('sqlEditor').addEventListener('input', syncExampleSelection);
     element('createTableBtn').addEventListener('click', function () { openTableEditor(null); });
     element('clearCustomDataBtn').addEventListener('click', clearCustomData);
     element('resetDemoBtn').addEventListener('click', resetDemo);
     element('themeToggleBtn').addEventListener('click', function () { global.SqlFlow.ui.toggleTheme(); });
     element('presentationModeBtn').addEventListener('click', function () { global.SqlFlow.ui.togglePresentationMode(); });
-    document.querySelectorAll('[data-academic-section]').forEach(function (button) { button.addEventListener('click', function () { global.SqlFlow.academic.open(button.dataset.academicSection); }); });
+    document.querySelectorAll('[data-academic-section]').forEach(function (button) { button.addEventListener('click', function () { global.SqlFlow.help.stop(false); if (button.dataset.academicSection === 'quiz') { global.SqlFlow.quiz.openTopic('all'); } else { global.SqlFlow.academic.open(button.dataset.academicSection); } }); });
     element('closeAcademicBtn').addEventListener('click', function () { global.SqlFlow.academic.close(); });
     element('academicModal').addEventListener('click', function (event) { if (event.target === element('academicModal')) { global.SqlFlow.academic.close(); } });
     global.SqlFlow.academic.bindReportControls();
@@ -466,13 +484,25 @@
   document.addEventListener('DOMContentLoaded', function () {
     global.SqlFlow.ui.initializeTheme();
     populateExamples();
-    global.SqlFlow.academic.initialize({ tryQuery: function (query) { element('sqlEditor').value = query; runCurrentQuery(); } });
+    global.SqlFlow.academic.initialize({ tryQuery: function (query) { element('sqlEditor').value = query; syncExampleSelection(); runCurrentQuery(); } });
+    const learning = {
+      tryQuery: function (query) { global.SqlFlow.help.stop(false); global.SqlFlow.academic.close(); element('sqlEditor').value = query; syncExampleSelection(); runCurrentQuery(); },
+      prepareQuery: function (query) { element('sqlEditor').value = query; syncExampleSelection(); global.SqlFlow.visualizer.resetVisualization(); global.SqlFlow.academic.setResult(null); },
+      openLesson: global.SqlFlow.academic.openLesson,
+      openQuiz: function (topic) { global.SqlFlow.quiz.openTopic(topic); },
+      animate: function (topic) { const match = global.SqlFlow.quizBank.topics.find(function (item) { return item.id === topic; }); const query = global.SqlFlow.academic.topics[match ? match.lesson : 0][2]; learning.tryQuery(query); },
+      openHelp: function (topic) { global.SqlFlow.help.openTopic(topic); }
+    };
+    global.SqlFlow.help.initialize(learning); global.SqlFlow.quiz.initialize(learning);
+    element('startGuidedTour').addEventListener('click', function () { global.SqlFlow.help.start('first'); });
+    document.querySelectorAll('[data-join-learning]').forEach(function (button) { button.addEventListener('click', function () { if (button.dataset.joinLearning === 'lab') { learning.animate('inner'); } else if (button.dataset.joinLearning === 'help') { learning.openHelp('join'); } else { learning.openQuiz('inner'); } }); });
     refreshDatabaseExplorer('students');
     const storageError = global.SqlFlow.database.getLastStorageError();
     if (storageError) { showDatabaseMessage(storageError); }
     attachEvents();
     global.SqlFlow.visualizer.renderTransactionState(global.SqlFlow.transactions.getState());
     element('sqlEditor').value = defaultQuery;
+    syncExampleSelection();
     runCurrentQuery();
   });
 

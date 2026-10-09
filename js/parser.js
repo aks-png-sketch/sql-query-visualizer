@@ -355,7 +355,7 @@
       const nearby = token.upperValue || token.value;
       if (token.type === 'RIGHT_PAREN') { throw syntaxError('unexpected closing parenthesis', token); }
       if (nearby === 'DISTINCT') { throw syntaxError('DISTINCT must appear immediately after SELECT', token); }
-      throw new Error('Unsupported SQL syntax near "' + nearby + '". Version 1.2 supports one SELECT, INSERT, UPDATE, DELETE, or transaction-control statement at a time.');
+      throw new Error('Unsupported SQL syntax near "' + nearby + '". Version 1.3 supports one SELECT, INSERT, UPDATE, DELETE, or transaction-control statement at a time.');
     }
     return {
       type: 'SelectQuery', select: selection, distinct: distinct, from: from, joins: joins,
@@ -378,7 +378,7 @@
     if (first.upperValue === 'UPDATE') { return parser.parseUpdateStatement(); }
     if (first.upperValue === 'DELETE') { return parser.parseDeleteStatement(); }
     if (['BEGIN', 'START', 'COMMIT', 'ROLLBACK', 'SAVEPOINT'].includes(first.upperValue)) { return parser.parseTransactionStatement(); }
-    throw new Error('Unsupported SQL statement "' + first.value + '" in Version 1.2.');
+    throw new Error('Unsupported SQL statement "' + first.value + '" in Version 1.3.');
   }
 
   global.SqlFlow = global.SqlFlow || {};

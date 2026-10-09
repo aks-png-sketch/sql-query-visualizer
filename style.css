@@ -1411,6 +1411,7 @@ body.presentation-mode .explanation-card { padding: 20px 22px; }
 .architecture-flow b { color: var(--cyan); font-size: 1.2rem; }
 .person-card { text-align: center; }
 .person-card img, .guide-mark { width: 150px; height: 175px; margin: 0 auto 12px; object-fit: cover; border: 1px solid var(--border-strong); border-radius: 13px; }
+.person-card img.guide-photo { object-fit: contain; background: #fff; }
 .person-card img { object-position: 66% 40%; }
 .person-card h4, .person-card p { overflow-wrap: anywhere; }
 .guide-mark { display: grid; place-items: center; background: linear-gradient(135deg, rgba(88,166,255,.25), rgba(99,230,255,.12)); color: var(--cyan); font-weight: 800; }
@@ -1450,3 +1451,90 @@ body.presentation-mode .explanation-card { padding: 20px 22px; }
   .report-table thead { display: table-header-group; }
   .report-section, .report-table tr { break-inside: avoid; }
 }
+
+/* Interactive learning uses the existing SQLFlow palette and native controls. */
+.simulation-panel, .join-video-lesson { margin: 18px 0; padding: 18px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--panel-alt); }
+[data-theme="light"] #sqlEditor { background: var(--panel); color: var(--text); }
+[data-theme="light"] .academic-header { background: #fff; }
+[data-theme="dark"] .academic-header { background: #0e1827; }
+.modal-backdrop { grid-template-columns: minmax(0, 1fr); }
+.academic-modal, .report-modal { width: min(1120px, 100%); min-width: 0; }
+@media (max-width: 800px) { .modal-backdrop { padding: 8px; } .academic-modal, .report-modal { width: 100%; } }
+.simulation-controls, .quiz-navigation, .quiz-question-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.simulation-controls label { display: flex; align-items: center; gap: 6px; }
+.simulation-relations { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 16px; }
+.simulation-relations > section, .help-manual > *, .quiz-topic-grid > *, .quiz-settings > * { min-width: 0; }
+.learning-table-wrap { max-width: 100%; overflow-x: auto; border-radius: 8px; }
+.simulation-accepted td { background: color-mix(in srgb, var(--green) 18%, var(--panel)); }
+.simulation-rejected td { background: color-mix(in srgb, var(--danger) 18%, var(--panel)); }
+.simulation-key { box-shadow: inset 0 -3px var(--cyan); }
+.simulation-message, .simulation-status, .quiz-prompt { overflow-wrap: anywhere; }
+.simulation-operation { font-weight: 700; color: var(--cyan); overflow-wrap: anywhere; padding: 12px; background: var(--panel); border-radius: 9px; }
+.simulation-current { margin: 14px 0; padding: 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel); }
+.simulation-evidence-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,250px),1fr)); gap: 12px; }
+.simulation-evidence-grid > section { min-width: 0; }
+.simulation-output-contribution { grid-column: 1 / -1; }
+.flow-card { width: 100%; text-align: left; }
+.flow-description { display: block; margin-top: 10px; color: var(--muted); font-size: .82rem; line-height: 1.5; font-weight: 400; }
+.simulation-evidence-detail { line-height: 1.6; overflow-wrap: anywhere; }
+.simulation-relations .learning-table-wrap { max-height: 260px; min-height: 100px; overflow: auto; }
+.simulation-relations > section { min-height: 180px; }
+.simulation-current { min-height: 150px; }
+.simulation-relations .data-table thead th { position: sticky; top: 0; z-index: 1; }
+.simulation-row-state { font-weight: 700; white-space: nowrap; }
+.simulation-processing td { background: color-mix(in srgb,var(--orange) 18%,var(--panel)); }
+.simulation-decision { margin: 0 0 10px; }
+.simulation-presenter-note { display: none; }
+.presentation-mode .simulation-presenter-note { display: block; color: var(--muted); line-height: 1.5; }
+.simulation-pair-note { color: var(--muted); font-size: .85rem; }
+.simulation-order-map .learning-table-wrap { max-height: 240px; overflow: auto; }
+.simulation-enter { animation: simulation-arrival 180ms ease-out; }
+@keyframes simulation-arrival { from { opacity: .55; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.presentation-mode .simulation-panel h3 { font-size: 1.7rem; }
+.presentation-mode #sqlEditor { min-height: 200px; max-height: 260px; }
+.presentation-mode #executionFlow { max-height: 300px; overflow: auto; }
+.presentation-mode .simulation-operation { font-size: 1.15rem; }
+.presentation-mode #simulationContainer .simulation-controls { position: sticky; top: 0; z-index: 3; padding: 10px; background: var(--panel); border-radius: 10px; }
+.help-action-steps { line-height: 1.6; padding-left: 24px; }
+.help-action-steps li { margin: 8px 0; }
+.presentation-mode .simulation-relations .learning-table-wrap { max-height: 180px; }
+.presentation-mode .simulation-evidence-grid { grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); }
+.quiz-option small { color: var(--muted); white-space: nowrap; }
+progress { width: 100%; height: 12px; accent-color: var(--blue); }
+.help-manual { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 20px; margin: 18px 0; }
+.help-topic-nav { display: flex; flex-direction: column; gap: 7px; max-height: 65vh; overflow-y: auto; }
+.help-topic-nav button { text-align: left; }
+[aria-current="true"] { border-color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan); }
+#helpDetail p { line-height: 1.7; }
+#helpDetail button, .quiz-feedback button, .quiz-topic-grid button { margin: 5px; }
+.tutorial-cards button { margin: 5px; }
+.responsive-video { aspect-ratio: 16 / 9; max-width: 900px; margin: 12px auto; }
+.responsive-video iframe { display: block; width: 100%; height: 100%; border: 0; border-radius: 12px; }
+.join-video-lesson { scroll-margin-top: 120px; }
+.lesson-practice { display: inline-block; margin: 10px 12px 10px 0; color: var(--cyan); }
+.quiz-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px; }
+.quiz-settings label, #interactiveHelp > label { display: grid; gap: 7px; }
+.quiz-topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; margin: 22px 0; }
+.quiz-answer { margin: 16px 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
+.quiz-answer textarea { width: 100%; min-height: 130px; }
+.quiz-answer input[type="text"], .quiz-answer input:not([type]) { width: 100%; }
+.quiz-option { display: flex; align-items: baseline; gap: 12px; margin: 10px 0; padding: 12px; border-radius: 8px; background: var(--panel-alt); overflow-wrap: anywhere; }
+.quiz-answer input[type="checkbox"], .quiz-answer input[type="radio"] { flex: 0 0 auto; width: 18px; height: 18px; accent-color: var(--blue); }
+.quiz-answer fieldset { min-width: 0; border-color: var(--border); padding: 10px; }
+.quiz-answer fieldset label { display: inline-flex; align-items: center; gap: 7px; margin-right: 16px; }
+.quiz-answer li { margin: 10px 0; overflow-wrap: anywhere; }
+.quiz-answer li button { margin: 4px; }
+.quiz-code, #helpDetail pre, #quizSection pre { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; padding: 12px; background: var(--panel-alt); color: var(--text); }
+.quiz-feedback, .quiz-resume { margin: 18px 0; padding: 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel-alt); }
+.quiz-feedback.correct { border-left: 5px solid var(--green); }
+.quiz-feedback.incorrect { border-left: 5px solid var(--danger); }
+.quiz-score { font-size: 1.35rem; color: var(--cyan); }
+.sql-keyword { color: var(--cyan); font-weight: 700; }
+.sql-string { color: var(--green); }
+.sql-number { color: var(--orange); }
+.walkthrough-card { position: fixed; z-index: 1000; bottom: 12px; left: 50%; transform: translateX(-50%); width: min(590px, calc(100% - 24px)); max-height: 38vh; overflow: auto; padding: 16px; border: 2px solid var(--cyan); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.walkthrough-card h3, .walkthrough-card p { margin: 7px 0; }
+.walkthrough-target { outline: 4px solid var(--orange) !important; outline-offset: 4px; scroll-margin-bottom: 280px; }
+@media (max-width: 800px) { .help-manual { grid-template-columns: 1fr; } .help-topic-nav { max-height: 200px; } .quiz-question-nav { max-height: 160px; overflow: auto; } }
+@media (prefers-reduced-motion: reduce) { .simulation-panel *, .walkthrough-target { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media print { .walkthrough-card { display: none !important; } }

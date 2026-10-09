@@ -1,0 +1,32 @@
+(function (global) {
+  'use strict';
+  function normalize(text) { return String(text).toLowerCase().replace(/\d+(?:\.\d+)?/g,'#').replace(/[^a-z#\s]/g,' ').replace(/\s+/g,' ').trim(); }
+  const stop=new Set('a an the to of in on for is are was be and or with which what why how does do can must should it its that this from by at as then only'.split(' '));
+  function tokens(text){return new Set(normalize(text).split(' ').filter(function(word){return word.length>2&&!stop.has(word);}));}
+  function similarity(left,right){const common=Array.from(left).filter(function(item){return right.has(item);}).length;return common/(left.size+right.size-common||1);}
+  function audit(){const bank=global.SqlFlow.quizBank,engine=global.SqlFlow.quizEngine,errors=[],stems=new Map(),ids=new Set(),distribution={};const formats=new Set(['single','multi','trueFalse','predict','fill','error','query','order','join','filter','group','decision','sql','repair']);let fixtureChecks=0,answerChecks=0;
+    bank.topics.forEach(function(topic){distribution[topic.id]={beginner:0,intermediate:0,advanced:0};});
+    bank.questions.forEach(function(q){try{
+      if(ids.has(q.id))throw new Error('Duplicate ID');ids.add(q.id);const stem=normalize(q.prompt);if(stems.has(stem))throw new Error('Duplicate or number-only stem: '+stems.get(stem));stems.set(stem,q.id);
+      if(!distribution[q.topic]||!Object.prototype.hasOwnProperty.call(distribution[q.topic],q.difficulty))throw new Error('Invalid topic/difficulty');distribution[q.topic][q.difficulty]++;
+      if(!formats.has(q.type))throw new Error('Invalid format');['prompt','explanation','hint'].forEach(function(field){if(typeof q[field]!=='string'||q[field].trim().length<8)throw new Error('Missing '+field);});
+      if(['sql','repair'].includes(q.type)){if(!q.sql||!q.columns||!q.expected||!q.fixture)throw new Error('Incomplete SQL question');if(q.type==='repair'&&!q.badSql)throw new Error('Missing broken SQL');}
+      else if(q.type==='fill'){if(!Array.isArray(q.correct)||!q.correct.length||!q.correct.every(function(item){return typeof item==='string'&&item.trim();}))throw new Error('Invalid fill key');}
+      else if(q.type==='order'){if(!Array.isArray(q.correct)||q.correct.length<2||new Set(q.correct).size!==q.correct.length)throw new Error('Invalid order key');}
+      else if(q.type==='decision'){if(!q.sql||!q.replayStage||!Array.isArray(q.correct)||!q.correct.every(function(item){return typeof item==='boolean';})||!(q.decisionRows||bank.fixtureRows[q.decisionTable]))throw new Error('Incomplete row decision');}
+      else {const options=q.candidates||q.choices;if(!Array.isArray(options)||options.length<2||!Array.isArray(q.correct)||new Set(q.correct).size!==q.correct.length||q.correct.some(function(index){return !Number.isInteger(index)||index<0||index>=options.length;}))throw new Error('Invalid choice key');if(['single','query','error','trueFalse'].includes(q.type)&&q.correct.length!==1)throw new Error('Single-answer key must have one choice');if(q.candidates&&(!q.columns||!q.expected))throw new Error('Missing prediction relation');}
+      const answer=['sql','repair'].includes(q.type)?q.sql:q.type==='fill'?q.correct[0]:q.correct;if(!engine.grade(q,answer).correct)throw new Error('Correct key rejected');answerChecks++;
+      if(q.fixture){if(!engine.equivalent(engine.execute(q.sql,q.dataset),q))throw new Error('Authored fixture result mismatch');fixtureChecks++;}
+      if(q.badSql&&q.errorIncludes){let caught;try{engine.execute(q.badSql,q.dataset);}catch(error){caught=error;}if(!caught||!caught.message.toLowerCase().includes(q.errorIncludes.toLowerCase()))throw new Error('Incorrect parser/error oracle');fixtureChecks++;}
+      if(q.type==='repair'&&engine.grade(q,q.badSql).correct)throw new Error('Broken query already satisfies the requirement');
+      if(q.stageCheck){const result=engine.execute(q.stageCheck.sql,q.stageCheck.dataset);if(JSON.stringify(result.stages.map(function(stage){return stage.rows.length;}))!==JSON.stringify(q.stageCheck.counts))throw new Error('Stage cardinality oracle mismatch');fixtureChecks++;}
+      if(q.joinCheck){const stage=engine.execute(q.joinCheck.sql,q.joinCheck.dataset).stages.find(function(s){return !!s.joinDetails;});const d=stage.joinDetails;if(d.comparisons!==q.joinCheck.comparisons||d.matchedRows!==q.joinCheck.matches||d.unmatchedRows!==q.joinCheck.unmatched||d.outputRows!==q.joinCheck.output)throw new Error('JOIN statistics oracle mismatch');fixtureChecks++;}
+      if(q.replayCheck){const t=q.replayCheck,stage=engine.execute(t.sql,t.dataset).stages.find(function(s){return s.label===t.label;}),view=global.SqlFlow.simulation.snapshot(stage,t.cursor);if(view.rows.length!==t.outputRows||view.action.inputIndex!==t.inputIndex||view.action.accepted!==t.accepted)throw new Error('Replay prefix oracle mismatch');fixtureChecks++;}
+      const choices=q.candidates||q.choices;if(choices&&choices.length&&Array.isArray(q.correct)){for(let mask=0;mask<Math.pow(2,choices.length);mask++){const chosen=choices.map(function(_,index){return index;}).filter(function(index){return mask&(1<<index);});const expected=JSON.stringify(chosen)===JSON.stringify(q.correct.slice().sort(function(a,b){return a-b;}));if(engine.grade(q,chosen).correct!==expected)throw new Error('Incorrect subset grading');answerChecks++;}}
+    }catch(error){errors.push(q.id+': '+error.message);}});
+    Object.keys(distribution).forEach(function(topic){Object.keys(distribution[topic]).forEach(function(level){if(distribution[topic][level]<5)errors.push(topic+': insufficient '+level+' questions');});});
+    if(bank.questions.length<300)errors.push('Bank below 300 questions');const near=[],sets=bank.questions.map(function(q){return tokens(q.prompt);});for(let i=0;i<bank.questions.length;i++)for(let j=i+1;j<bank.questions.length;j++){const score=similarity(sets[i],sets[j]);if(score>=0.6&&sets[i].size>=6&&sets[j].size>=6)near.push({left:bank.questions[i].id,right:bank.questions[j].id,score:Number(score.toFixed(3)),leftStem:bank.questions[i].prompt,rightStem:bank.questions[j].prompt});}
+    return {questions:bank.questions.length,distribution:distribution,errors:errors,near:near.sort(function(a,b){return b.score-a.score;}),fixtureChecks:fixtureChecks,answerChecks:answerChecks};
+  }
+  global.SqlFlow.quizAudit={audit:audit,normalize:normalize};
+})(typeof window!=='undefined'?window:globalThis);

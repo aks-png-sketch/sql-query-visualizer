@@ -1116,6 +1116,8 @@
 
   global.SqlFlow.stressTests.register({ test: test, assert: assert, execute: execute });
   global.SqlFlow.complianceTests.register({ test: test, assert: assert, execute: execute });
+  global.SqlFlow.learningTests.register({ test: test, assert: assert, execute: execute });
+  global.SqlFlow.refinementTests.register({ test:test,assert:assert,execute:execute });
 
   const output = document.getElementById('testOutput');
   const summary = document.getElementById('summary');

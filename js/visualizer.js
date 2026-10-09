@@ -67,7 +67,7 @@
     inputs.className = 'join-inputs';
     const left = document.createElement('section');
     left.className = 'join-input-card';
-    appendTextElement(left, 'div', 'join-card-label', 'LEFT INPUT');
+    appendTextElement(left, 'div', 'join-card-label', 'LEFT INPUT — preview (up to 5 rows)');
     appendTextElement(left, 'h3', '', details.leftName);
     const conditionColumns = details.condition.split(' = ');
     left.appendChild(createTable(details.leftColumns, details.leftRows, { highlightColumns: [conditionColumns[0]] }));
@@ -79,7 +79,7 @@
 
     const right = document.createElement('section');
     right.className = 'join-input-card';
-    appendTextElement(right, 'div', 'join-card-label', 'RIGHT TABLE');
+    appendTextElement(right, 'div', 'join-card-label', 'RIGHT TABLE — preview (up to 5 rows)');
     appendTextElement(right, 'h3', '', details.rightName);
     right.appendChild(createTable(details.rightColumns, details.rightRows, { highlightColumns: [conditionColumns[1]] }));
     inputs.appendChild(left);
@@ -94,7 +94,7 @@
     if (details.unmatchedRows > 0) { appendTextElement(stats, 'span', '', details.unmatchedRows + ' unmatched left rows'); }
     appendTextElement(stats, 'span', '', details.outputRows + ' output rows');
     panel.appendChild(stats);
-    appendTextElement(panel, 'div', 'join-output-label', 'MATCHED OUTPUT');
+    appendTextElement(panel, 'div', 'join-output-label', 'JOIN OUTPUT');
     return panel;
   }
 
@@ -121,7 +121,7 @@
     if (stage.joinDetails) { container.appendChild(createJoinVisualization(stage.joinDetails)); }
     const table = createTable(stage.columns || [], stage.rows || []);
     table.classList.add('stage-transition-table');
-    container.appendChild(table);
+    if (getElement('simulationContainer') && stage.simulation) { const reference = document.createElement('details'); appendTextElement(reference, 'summary', '', 'Completed stage result (reference)'); reference.appendChild(table); container.appendChild(reference); } else { container.appendChild(table); }
   }
 
   function renderDatabasePreview(table) {
@@ -164,17 +164,19 @@
       index: stages.length
     });
     stages.forEach(function (stage) {
-      const card = document.createElement('div');
+      const card = document.createElement('button');card.type='button';card.dataset.executionStage=stage.index;card.setAttribute('aria-label','Open '+stage.label+' stage');
       const active = state.activeTab === 'result' ? stage.index === stages.length - 1 : state.currentStep === stage.index;
       card.className = 'flow-card' + (active ? ' active' : '');
-      const header = document.createElement('div');
+      card.setAttribute('aria-pressed',String(active));const header = document.createElement('span');
       header.className = 'flow-card-header';
       appendTextElement(header, 'span', 'flow-step', 'Stage ' + (stage.index + 1));
       appendTextElement(header, 'span', 'flow-label', stage.label);
       card.appendChild(header);
-      appendTextElement(card, 'p', '', stage.description);
+      appendTextElement(card, 'span', 'flow-description', stage.description);
+      card.addEventListener('click',function(){if(stage.label==='RESULT'){setTab('result');}else{selectExecutionStage(stage.index);}const current=getElement('executionFlow').querySelector('.flow-card.active');if(current)current.focus({preventScroll:true});});
       container.appendChild(card);
     });
+    const activeCard=container.querySelector('.flow-card.active');if(activeCard&&container.scrollHeight>container.clientHeight){const top=activeCard.getBoundingClientRect().top-container.getBoundingClientRect().top+container.scrollTop;container.scrollTop=Math.max(0,top-container.clientHeight+activeCard.offsetHeight);}
   }
 
   function hideVisualizationContainers() {
@@ -328,8 +330,10 @@
     const explanationContainer = getElement('explanationContainer');
     const counter = getElement('stepCounter');
     hideVisualizationContainers();
+    if (global.SqlFlow.simulation) { global.SqlFlow.simulation.hide(); }
     if (state.activeTab === 'execution') {
       const stage = state.executionResult.stages[state.currentStep];
+      if (global.SqlFlow.simulation) { global.SqlFlow.simulation.show(stage); }
       description.textContent = stage.description;
       renderStageInto(executionContainer, stage, state.currentStep);
       executionContainer.classList.remove('hidden');
@@ -370,6 +374,7 @@
 
   function resetVisualization() {
     stopAutoPlay();
+    if (global.SqlFlow.simulation) { global.SqlFlow.simulation.reset(); global.SqlFlow.simulation.hide(); }
     state.executionResult = null;
     state.currentStep = 0;
     state.activeTab = 'execution';
@@ -417,6 +422,7 @@
   function toggleAutoPlay() {
     if (!state.executionResult || !['execution', 'explanation'].includes(state.activeTab)) { return; }
     if (state.autoPlayTimer) { stopAutoPlay(); return; }
+    if (global.SqlFlow.simulation) { global.SqlFlow.simulation.pause(); }
     const button = getElement('autoPlayBtn');
     button.textContent = 'Stop';
     state.autoPlayTimer = setInterval(function () {
@@ -467,6 +473,7 @@
     previousStep: previousStep,
     nextStep: nextStep,
     toggleAutoPlay: toggleAutoPlay,
+    stopAutoPlay: stopAutoPlay,
     renderTransactionState: renderTransactionState,
     selectExecutionStage: selectExecutionStage,
     setTab: setTab

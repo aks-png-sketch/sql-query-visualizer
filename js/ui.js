@@ -74,6 +74,7 @@
     if (!doc) { return function () {}; }
     if (state.keyboardHandler) { doc.removeEventListener('keydown', state.keyboardHandler); }
     state.keyboardHandler = function (event) {
+      if (event.key !== 'Escape' && doc.querySelector('#academicModal:not(.hidden), #reportModal:not(.hidden), #tableEditorModal:not(.hidden)')) { return; }
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault();
         callbacks.run();

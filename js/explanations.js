@@ -3,15 +3,20 @@
 
   function plural(count, word) { return count + ' ' + word + (count === 1 ? '' : 's'); }
   function identifier(node) { return node ? (node.qualifier ? node.qualifier + '.' : '') + node.name : ''; }
-  function value(node) { return node && node.valueType === 'string' ? "'" + node.value + "'" : String(node ? node.value : ''); }
+  function value(node) { return node && node.valueType === 'string' ? "'" + String(node.value).replace(/'/g,"''") + "'" : node && node.value === null ? 'NULL' : String(node ? node.value : ''); }
   function expression(node) {
     if (!node) { return '';
     }
     if (node.type === 'ColumnReference') { return identifier(node); }
-    if (node.type === 'AggregateExpression') { return node.functionName + '(' + (node.argument.type === 'Wildcard' ? '*' : identifier(node.argument)) + ')'; }
+    if (node.type === 'AggregateExpression') { return node.functionName + '(' + (node.distinct ? 'DISTINCT ' : '') + (node.argument.type === 'Wildcard' ? '*' : identifier(node.argument)) + ')'; }
     if (node.type === 'ComparisonExpression') { return expression(node.left || node.operand) + ' ' + node.operator + ' ' + value(node.right || { value: node.value, valueType: typeof node.value === 'string' ? 'string' : 'number' }); }
     if (node.type === 'GroupedExpression') { return '(' + expression(node.expression) + ')'; }
     if (node.type === 'LogicalExpression') { return expression(node.left) + ' ' + node.operator + ' ' + expression(node.right); }
+    if (node.type === 'NotExpression') { return 'NOT (' + expression(node.expression) + ')'; }
+    if (node.type === 'IsNullExpression') { return expression(node.left) + ' IS ' + (node.negated ? 'NOT ' : '') + 'NULL'; }
+    if (node.type === 'InExpression') { return expression(node.left) + (node.negated ? ' NOT' : '') + ' IN (' + node.values.map(value).join(', ') + ')'; }
+    if (node.type === 'BetweenExpression') { return expression(node.left) + (node.negated ? ' NOT' : '') + ' BETWEEN ' + value(node.lower) + ' AND ' + value(node.upper); }
+    if (node.type === 'LikeExpression') { return expression(node.left) + (node.negated ? ' NOT' : '') + ' LIKE ' + value(node.pattern) + (node.escape === null ? '' : ' ESCAPE ' + value({ value: node.escape, valueType: 'string' })); }
     return node.label || '';
   }
   function tableReference(reference) {
@@ -21,7 +26,7 @@
   function aggregateText(aggregate, grouped) {
     const argument = aggregate.argument.type === 'Wildcard' ? '*' : identifier(aggregate.argument);
     const context = grouped ? ' within each group' : ' across the single implicit group formed by all rows';
-    if (aggregate.functionName === 'COUNT') { return argument === '*' ? 'COUNT(*) counts every row' + context + '.' : 'COUNT(' + argument + ') counts non-NULL values' + context + '.'; }
+    if (aggregate.functionName === 'COUNT') { return argument === '*' ? 'COUNT(*) counts every row' + context + '.' : 'COUNT(' + (aggregate.distinct ? 'DISTINCT ' : '') + argument + ') counts ' + (aggregate.distinct ? 'unique ' : '') + 'non-NULL values' + context + '.'; }
     if (aggregate.functionName === 'AVG') { return 'AVG(' + argument + ') calculates the mean value' + context + '.'; }
     if (aggregate.functionName === 'SUM') { return 'SUM(' + argument + ') adds the numeric values' + context + '.'; }
     if (aggregate.functionName === 'MIN') { return 'MIN(' + argument + ') finds the smallest value' + context + '.'; }
@@ -45,7 +50,7 @@
   }
   function selectClause(ast) {
     if (ast.select.all) { return '*'; }
-    return ast.select.expressions.map(expression).join(', ');
+    return ast.select.expressions.map(function(item){return expression(item)+(item.alias?' AS '+item.alias:'');}).join(', ');
   }
   function stageCounts(stages, index) {
     const stage = stages[index];
@@ -77,8 +82,9 @@
         clause = 'DISTINCT';
         happened = 'DISTINCT compares the projected rows and removes ' + plural(counts.inputRows - counts.outputRows, 'duplicate row') + ', leaving ' + plural(counts.outputRows, 'unique row') + '.';
       } else if (baseOperation === 'ORDER BY') {
-        clause = 'ORDER BY ' + expression(ast.orderBy.expression) + ' ' + ast.orderBy.direction;
-        happened = 'The ' + plural(counts.outputRows, 'row') + ' ' + (counts.outputRows === 1 ? 'is' : 'are') + ' sorted by ' + expression(ast.orderBy.expression) + ' in ' + ast.orderBy.direction + ' order, from ' + (ast.orderBy.direction === 'DESC' ? 'highest to lowest' : 'lowest to highest') + '.';
+        const keys=(ast.orderBy.terms||[ast.orderBy]).map(function(term){return expression(term.expression)+' '+term.direction;}).join(', ');
+        clause = 'ORDER BY ' + keys;
+        happened = 'The ' + plural(counts.outputRows, 'row') + ' ' + (counts.outputRows === 1 ? 'is' : 'are') + ' placed in measured result order using ' + keys + (ast.orderBy.terms.length===1?', from '+(ast.orderBy.direction==='DESC'?'highest to lowest':'lowest to highest')+'.':'.') + ' Ties on earlier keys use later keys; complete ties keep their input occurrence order.';
       } else if (baseOperation === 'LIMIT') {
         clause = 'LIMIT ' + ast.limit.count;
         happened = 'LIMIT ' + ast.limit.count + ' keeps the first ' + counts.outputRows + ' rows and excludes ' + Math.max(0, counts.inputRows - counts.outputRows) + ' rows from the current result.';
@@ -107,7 +113,7 @@
     if (ast.select.all) { parts.push('returns every column'); } else { parts.push('projects ' + selectClause(ast)); }
     if (ast.having) { parts.push('keeps groups matching ' + expression(ast.having)); }
     if (ast.distinct) { parts.push('removes duplicate projected rows'); }
-    if (ast.orderBy) { parts.push('sorts by ' + expression(ast.orderBy.expression) + ' ' + ast.orderBy.direction); }
+    if (ast.orderBy) { parts.push('sorts by ' + (ast.orderBy.terms||[ast.orderBy]).map(function(term){return expression(term.expression)+' '+term.direction;}).join(', ')); }
     if (ast.limit) { parts.push('keeps at most ' + ast.limit.count + ' rows'); }
     return { type: 'QueryExplanation', steps: steps, summary: parts.join(', ') + ', and returns ' + plural(result.result.length, 'row') + '.', statementType: 'SELECT' };
   }

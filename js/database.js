@@ -109,7 +109,7 @@
   function resolveTable(tableName) {
     const requested = String(tableName || '').trim();
     const key = registryKey(requested);
-    if (!key) { throw new Error('Table not found: "' + requested + '".'); }
+    if (!key) { throw new Error('Table not found: "' + requested + '". Available tables: ' + Object.keys(tables).map(function (name) { return tables[name].name; }).join(', ') + '. Use Database Explorer to create or import a custom table if needed.'); }
     return publicTable(tables[key]);
   }
 

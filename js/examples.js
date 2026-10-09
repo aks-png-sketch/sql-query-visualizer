@@ -121,6 +121,46 @@
     {
       label: 'Commit transaction',
       query: 'COMMIT;'
+    },
+    {
+      label: 'Demo 1: Names and cities',
+      query: 'SELECT name, city\nFROM students\nORDER BY name ASC;'
+    },
+    {
+      label: 'Demo 2: Filter and top four',
+      query: 'SELECT name, cgpa\nFROM students\nWHERE cgpa >= 8.5 AND year >= 3\nORDER BY cgpa DESC\nLIMIT 4;'
+    },
+    {
+      label: 'Demo 3: Unique course departments',
+      query: 'SELECT DISTINCT department\nFROM courses\nORDER BY department ASC;'
+    },
+    {
+      label: 'Demo 4: Grade groups with HAVING',
+      query: 'SELECT grade, COUNT(*)\nFROM enrollments\nGROUP BY grade\nHAVING COUNT(*) >= 2\nORDER BY COUNT(*) DESC;'
+    },
+    {
+      label: 'Demo 5: Two JOINs, grade and ordering',
+      query: "SELECT s.name, c.course_name, e.grade\nFROM students s\nINNER JOIN enrollments e ON s.student_id = e.student_id\nINNER JOIN courses c ON e.course_id = c.course_id\nWHERE e.grade = 'A'\nORDER BY s.name ASC;"
+    },
+    {
+      label: 'v1.4: Output aliases and LIMIT',
+      query: 'SELECT name AS student_name, cgpa AS score\nFROM students\nORDER BY score DESC, student_name ASC\nLIMIT 3;'
+    },
+    {
+      label: 'v1.4: LEFT JOIN unmatched rows',
+      query: 'SELECT s.name AS student_name\nFROM students s\nLEFT JOIN enrollments e ON s.student_id = e.student_id\nWHERE e.enrollment_id IS NULL;'
+    },
+    {
+      label: 'v1.4: IN, BETWEEN and LIKE',
+      query: "SELECT name, city FROM students\nWHERE (city IN ('Mumbai', 'Boston') OR name LIKE 'S%')\nAND cgpa BETWEEN 8 AND 10\nORDER BY name ASC;"
+    },
+    {
+      label: 'v1.4: Multiple ordering keys',
+      query: 'SELECT year, name, cgpa FROM students\nORDER BY year ASC, cgpa DESC, name ASC;'
+    },
+    {
+      label: 'v1.4: Distinct learners per course',
+      query: 'SELECT course_id, COUNT(DISTINCT student_id) AS learners\nFROM enrollments\nGROUP BY course_id\nHAVING COUNT(DISTINCT student_id) >= 2\nORDER BY learners DESC, course_id ASC;'
     }
   ];
 

@@ -9,22 +9,27 @@
   }
   function expressionText(expression) {
     if (expression.type === 'AggregateExpression') {
-      return expression.functionName + '(' + (expression.argument.type === 'Wildcard' ? '*' : columnText(expression.argument)) + ')';
+      return expression.functionName + '(' + (expression.distinct ? 'DISTINCT ' : '') + (expression.argument.type === 'Wildcard' ? '*' : columnText(expression.argument)) + ')';
     }
     return columnText(expression);
   }
+  function literalText(literal){return literal.valueType==='string'?"'"+String(literal.value).replace(/'/g,"''")+"'":literal.value===null?'NULL':String(literal.value);}
   function booleanText(expression) {
     if (!expression) { return ''; }
     if (expression.type === 'GroupedExpression') { return '(' + booleanText(expression.expression) + ')'; }
     if (expression.type === 'LogicalExpression') {
       return booleanText(expression.left) + ' ' + expression.operator + ' ' + booleanText(expression.right);
     }
-    const value = expression.right.valueType === 'string' ? "'" + String(expression.right.value).replace(/'/g, "''") + "'" : String(expression.right.value);
-    return expressionText(expression.left) + ' ' + expression.operator + ' ' + value;
+    if(expression.type==='NotExpression')return 'NOT ('+booleanText(expression.expression)+')';
+    if(expression.type==='IsNullExpression')return expressionText(expression.left)+' IS '+(expression.negated?'NOT ':'')+'NULL';
+    if(expression.type==='InExpression')return expressionText(expression.left)+(expression.negated?' NOT':'')+' IN ('+expression.values.map(literalText).join(', ')+')';
+    if(expression.type==='BetweenExpression')return expressionText(expression.left)+(expression.negated?' NOT':'')+' BETWEEN '+literalText(expression.lower)+' AND '+literalText(expression.upper);
+    if(expression.type==='LikeExpression')return expressionText(expression.left)+(expression.negated?' NOT':'')+' LIKE '+literalText(expression.pattern)+(expression.escape===null?'':' ESCAPE '+literalText({value:expression.escape,valueType:'string'}));
+    return expressionText(expression.left) + ' ' + expression.operator + ' ' + literalText(expression.right);
   }
   function selectionText(ast) {
     if (ast.select.all) { return '*'; }
-    return ast.select.expressions.map(expressionText).join(', ');
+    return ast.select.expressions.map(function(expression){return expressionText(expression)+(expression.alias?' AS '+expression.alias:'');}).join(', ');
   }
 
   function buildQueryPlan(executionResult) {
@@ -91,9 +96,8 @@
     root = node(projectNodeType, selectionText(ast), consume(selectStageLabel), [root]);
     if (ast.having) { root = node('HAVING', booleanText(ast.having), consume('HAVING'), [root]); }
     if (ast.distinct) { root = node('DISTINCT', selectionText(ast), consume('DISTINCT'), [root]); }
-    if (ast.orderBy) {
-      root = node('ORDER BY', expressionText(ast.orderBy.expression) + ' ' + ast.orderBy.direction, consume('ORDER BY'), [root]);
-    }
+    const orderText=ast.orderBy?(ast.orderBy.terms||[ast.orderBy]).map(function(term){return expressionText(term.expression)+' '+term.direction;}).join(', '):'';
+    if (ast.orderBy) { root = node('ORDER BY', orderText, consume('ORDER BY'), [root]); }
     if (ast.limit) { root = node('LIMIT', String(ast.limit.count), consume('LIMIT'), [root]); }
 
     function algebraBase() {
@@ -111,7 +115,7 @@
       }
       if (ast.having) { algebra = 'σ HAVING ' + booleanText(ast.having) + '\n(\n' + indent(algebra) + '\n)'; }
       if (ast.distinct) { algebra = 'δ DISTINCT\n(\n' + indent(algebra) + '\n)'; }
-      if (ast.orderBy) { algebra = 'τ ' + expressionText(ast.orderBy.expression) + ' ' + ast.orderBy.direction + '\n(\n' + indent(algebra) + '\n)'; }
+      if (ast.orderBy) { algebra = 'τ ' + orderText + '\n(\n' + indent(algebra) + '\n)'; }
       if (ast.limit) { algebra = 'λ LIMIT ' + ast.limit.count + '\n(\n' + indent(algebra) + '\n)'; }
       return algebra;
     }

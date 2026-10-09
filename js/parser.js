@@ -6,12 +6,17 @@
     'HAVING', 'ORDER', 'ASC', 'DESC', 'LIMIT', 'JOIN', 'INNER', 'LEFT', 'RIGHT',
     'FULL', 'OUTER', 'CROSS', 'ON', 'AS', 'INSERT', 'INTO', 'VALUES', 'UPDATE',
     'SET', 'DELETE', 'BEGIN', 'START', 'TRANSACTION', 'COMMIT', 'ROLLBACK',
-    'SAVEPOINT', 'TO'
+    'SAVEPOINT', 'TO', 'NULL', 'IS', 'NOT', 'IN', 'BETWEEN', 'LIKE', 'ESCAPE'
   ]);
   const AGGREGATES = new Set(['COUNT', 'SUM', 'AVG', 'MIN', 'MAX']);
 
   function syntaxError(message, token) {
-    return new Error('Syntax error: ' + message + (token ? ' at character ' + (token.position + 1) : '') + '.');
+    let line = token && token.line, column = token && token.column;
+    if (token && !line && token.source) {
+      const parts = token.source.slice(0, token.position).split(/\r\n|\r|\n/);
+      line = parts.length; column = parts[parts.length - 1].length + 1;
+    }
+    return new Error('Syntax error: ' + message + (token ? ' at character ' + (token.position + 1) + (line ? ' (line ' + line + ', column ' + column + ')' : '') : '') + '.');
   }
 
   function tokenize(query) {
@@ -34,7 +39,7 @@
           }
           value += input[index]; index += 1;
         }
-        if (!closed) { throw syntaxError('unterminated quoted string', { position: start }); }
+        if (!closed) { throw syntaxError('unterminated quoted string', { position: start, source: input }); }
         tokens.push({ type: 'STRING', value: value, position: start });
         continue;
       }
@@ -53,7 +58,7 @@
         while (index < input.length && /\d/.test(input[index])) { index += 1; }
         if (input[index] === '.') {
           index += 1;
-          if (!/\d/.test(input[index] || '')) { throw syntaxError('invalid number', { position: start }); }
+          if (!/\d/.test(input[index] || '')) { throw syntaxError('invalid number', { position: start, source: input }); }
           while (index < input.length && /\d/.test(input[index])) { index += 1; }
         }
         const raw = input.slice(start, index);
@@ -67,9 +72,18 @@
         ';': 'SEMICOLON', '(': 'LEFT_PAREN', ')': 'RIGHT_PAREN', '.': 'DOT'
       };
       if (tokenTypes[character]) { tokens.push({ type: tokenTypes[character], value: character, position: index }); index += 1; continue; }
-      throw syntaxError('unexpected character "' + character + '"', { position: index });
+      throw syntaxError('unexpected character "' + character + '"', { position: index, source: input });
     }
     tokens.push({ type: 'EOF', value: '', position: input.length });
+    let line = 1, column = 1, offset = 0;
+    tokens.forEach(function (token) {
+      while (offset < token.position) {
+        if (input[offset] === '\n') { line += 1; column = 1; }
+        else { column += 1; }
+        offset += 1;
+      }
+      token.line = line; token.column = column;
+    });
     return tokens;
   }
 
@@ -117,15 +131,18 @@
     this.advance();
     this.advance();
     let argument;
+    const distinct = this.matchKeyword('DISTINCT');
+    if (distinct && functionName !== 'COUNT') { throw syntaxError('DISTINCT inside aggregates is supported only by COUNT', this.peek()); }
     if (this.matchType('STAR')) {
       if (functionName !== 'COUNT') { throw syntaxError(functionName + '(*) is invalid; only COUNT accepts *', functionToken); }
+      if (distinct) { throw syntaxError('COUNT(DISTINCT *) is invalid; COUNT(DISTINCT ...) requires one column', functionToken); }
       argument = { type: 'Wildcard' };
     } else {
       if (this.peek().type !== 'IDENTIFIER') { throw syntaxError('expected a column name inside ' + functionName + '(...)', this.peek()); }
       argument = this.parseColumnReference(functionName + '(...)');
     }
     if (!this.matchType('RIGHT_PAREN')) { throw syntaxError('expected a closing parenthesis after ' + functionName + ' argument', this.peek()); }
-    return { type: 'AggregateExpression', functionName: functionName, argument: argument };
+    return { type: 'AggregateExpression', functionName: functionName, argument: argument, distinct: distinct };
   };
 
   Parser.prototype.parseValueExpression = function (context) {
@@ -135,22 +152,64 @@
 
   Parser.prototype.parseSelectList = function () {
     if (this.matchType('STAR')) { return { all: true, expressions: [] }; }
-    const expressions = [this.parseValueExpression('SELECT')];
-    while (this.matchType('COMMA')) { expressions.push(this.parseValueExpression('SELECT')); }
+    const parseItem = () => {
+      const expression = this.parseValueExpression('SELECT');
+      if (this.matchKeyword('AS')) { expression.alias = this.expectIdentifier('an output alias after AS').name; }
+      return expression;
+    };
+    const expressions = [parseItem()];
+    while (this.matchType('COMMA')) { expressions.push(parseItem()); }
     return { all: false, expressions: expressions };
   };
 
+  Parser.prototype.parsePredicateLiteral = function (context) {
+    const token = this.peek();
+    if (this.matchKeyword('NULL')) { return { type: 'Literal', value: null, valueType: 'null' }; }
+    if (token.type !== 'STRING' && token.type !== 'NUMBER') { throw syntaxError(context + ' requires a number, quoted string, or NULL', token); }
+    this.advance(); return { type: 'Literal', value: token.value, valueType: token.type.toLowerCase() };
+  };
   Parser.prototype.parseComparison = function (context, allowAggregates) {
     const left = allowAggregates ? this.parseValueExpression(context) : this.parseColumnReference(context);
+    if (this.matchKeyword('IS')) {
+      const negated = this.matchKeyword('NOT');
+      this.expectKeyword('NULL');
+      return { type: 'IsNullExpression', left: left, negated: negated };
+    }
+    const negated = this.matchKeyword('NOT');
+    if (this.matchKeyword('IN')) {
+      if (!this.matchType('LEFT_PAREN')) { throw syntaxError('IN requires a parenthesized list of literal values', this.peek()); }
+      if (this.peek().type === 'RIGHT_PAREN') { throw syntaxError('IN requires at least one value', this.peek()); }
+      const values = [this.parsePredicateLiteral('IN')];
+      while (this.matchType('COMMA')) { values.push(this.parsePredicateLiteral('IN')); }
+      if (!this.matchType('RIGHT_PAREN')) { throw syntaxError('expected ) after IN list', this.peek()); }
+      return { type: 'InExpression', left: left, values: values, negated: negated };
+    }
+    if (this.matchKeyword('BETWEEN')) {
+      const lower = this.parsePredicateLiteral('BETWEEN lower bound');
+      this.expectKeyword('AND');
+      const upper = this.parsePredicateLiteral('BETWEEN upper bound');
+      return { type: 'BetweenExpression', left: left, lower: lower, upper: upper, negated: negated };
+    }
+    if (this.matchKeyword('LIKE')) {
+      const pattern = this.parsePredicateLiteral('LIKE pattern');
+      if (pattern.valueType !== 'string' && pattern.valueType !== 'null') { throw syntaxError('LIKE requires a quoted string pattern or NULL', this.peek(-1)); }
+      let escape = null;
+      if (this.matchKeyword('ESCAPE')) {
+        const escaped = this.parsePredicateLiteral('LIKE ESCAPE');
+        if (escaped.valueType !== 'string' || Array.from(escaped.value).length !== 1) { throw syntaxError('LIKE ESCAPE must be one quoted character', this.peek(-1)); }
+        escape = escaped.value;
+      }
+      return { type: 'LikeExpression', left: left, pattern: pattern, escape: escape, negated: negated };
+    }
+    if (negated) { throw syntaxError('NOT after a column must be followed by IN, BETWEEN, or LIKE', this.peek()); }
     const operator = this.peek();
     if (operator.type !== 'OPERATOR') { throw syntaxError(context + ' comparison requires one of =, !=, >, <, >=, or <=', operator); }
     this.advance();
     const right = this.peek();
-    if (right.type !== 'STRING' && right.type !== 'NUMBER') { throw syntaxError(context + ' comparison is missing a number or quoted string operand', right); }
-    this.advance();
+    if (right.type !== 'STRING' && right.type !== 'NUMBER' && right.upperValue !== 'NULL') { throw syntaxError(context + ' comparison is missing a number, quoted string, or NULL operand', right); }
     return {
       type: 'ComparisonExpression', left: left, operator: operator.value,
-      right: { type: 'Literal', value: right.value, valueType: right.type.toLowerCase() }
+      right: this.parsePredicateLiteral(context + ' comparison')
     };
   };
 
@@ -165,11 +224,15 @@
     return this.parseComparison(context, allowAggregates);
   };
   Parser.prototype.parseAndExpression = function (context, allowAggregates) {
-    let expression = this.parseBooleanPrimary(context, allowAggregates);
+    let expression = this.parseNotExpression(context, allowAggregates);
     while (this.matchKeyword('AND')) {
-      expression = { type: 'LogicalExpression', operator: 'AND', left: expression, right: this.parseBooleanPrimary(context, allowAggregates) };
+      expression = { type: 'LogicalExpression', operator: 'AND', left: expression, right: this.parseNotExpression(context, allowAggregates) };
     }
     return expression;
+  };
+  Parser.prototype.parseNotExpression = function (context, allowAggregates) {
+    if (this.matchKeyword('NOT')) { return { type: 'NotExpression', expression: this.parseNotExpression(context, allowAggregates) }; }
+    return this.parseBooleanPrimary(context, allowAggregates);
   };
   Parser.prototype.parseOrExpression = function (context, allowAggregates) {
     let expression = this.parseAndExpression(context, allowAggregates);
@@ -313,6 +376,7 @@
     if (this.peek().type === 'KEYWORD' && this.peek().upperValue === 'DISTINCT') { throw syntaxError('DISTINCT may appear only once immediately after SELECT', this.peek()); }
     const selection = this.parseSelectList();
     if (this.peek().type === 'KEYWORD' && this.peek().upperValue === 'DISTINCT') { throw syntaxError('DISTINCT must appear immediately after SELECT', this.peek()); }
+    if (this.peek().type === 'IDENTIFIER') { throw syntaxError('use AS before a SELECT output alias', this.peek()); }
     this.expectKeyword('FROM');
     const from = this.parseTableReference('after FROM');
     const joins = [];
@@ -343,9 +407,14 @@
     }
     if (this.matchKeyword('ORDER')) {
       this.expectKeyword('BY');
-      orderBy = { type: 'OrderByClause', expression: this.parseValueExpression('ORDER BY'), direction: 'ASC' };
-      if (this.matchKeyword('ASC')) { orderBy.direction = 'ASC'; }
-      else if (this.matchKeyword('DESC')) { orderBy.direction = 'DESC'; }
+      const terms = [];
+      do {
+        const term = { type: 'OrderByTerm', expression: this.parseValueExpression('ORDER BY'), direction: 'ASC' };
+        if (this.matchKeyword('ASC')) { term.direction = 'ASC'; }
+        else if (this.matchKeyword('DESC')) { term.direction = 'DESC'; }
+        terms.push(term);
+      } while (this.matchType('COMMA'));
+      orderBy = { type: 'OrderByClause', terms: terms, expression: terms[0].expression, direction: terms[0].direction };
     }
     if (this.matchKeyword('LIMIT')) { limit = this.parseLimit(); }
 
@@ -355,7 +424,8 @@
       const nearby = token.upperValue || token.value;
       if (token.type === 'RIGHT_PAREN') { throw syntaxError('unexpected closing parenthesis', token); }
       if (nearby === 'DISTINCT') { throw syntaxError('DISTINCT must appear immediately after SELECT', token); }
-      throw new Error('Unsupported SQL syntax near "' + nearby + '". Version 1.3 supports one SELECT, INSERT, UPDATE, DELETE, or transaction-control statement at a time.');
+      if (['RIGHT', 'FULL', 'CROSS'].includes(nearby)) { throw syntaxError('Unsupported SQL syntax: ' + nearby + ' JOIN is not supported; use INNER JOIN or LEFT JOIN', token); }
+      throw syntaxError('Unsupported SQL syntax near "' + nearby + '"; check clause order and supported expressions', token);
     }
     return {
       type: 'SelectQuery', select: selection, distinct: distinct, from: from, joins: joins,

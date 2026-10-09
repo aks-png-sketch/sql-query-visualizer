@@ -21,7 +21,8 @@
     const categories = [
       { label: 'Basics', range: [0, 2] }, { label: 'Filtering', range: [2, 5] },
       { label: 'Aggregation', range: [5, 17] }, { label: 'JOINs', range: [17, 22] },
-      { label: 'Data Modification', range: [22, 25] }, { label: 'Transactions', range: [25, 30] }
+      { label: 'Data Modification', range: [22, 25] }, { label: 'Transactions', range: [25, 30] },
+      { label: 'Verified Demos', range: [30, 35] }, { label: 'v1.4 Syntax Demos', range: [35, 40] }
     ];
     const groups = {};
     categories.forEach(function (category) {

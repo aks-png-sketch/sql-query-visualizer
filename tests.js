@@ -1114,6 +1114,129 @@
     assert(result.explanation.steps.every(function (step, index) { return step.stageIndex === index; }), 'Expected exact stage mapping.');
   });
 
+  test('Five compatibility demos execute with verified row counts and measured stages', function () {
+    const expected = [10, 4, 7, 4, 5];
+    global.SqlFlow.examples.slice(-10,-5).forEach(function (example, index) {
+      const result = execute(example.query);
+      assert(result.result.length === expected[index], example.label + ' row count changed.');
+      assert(result.stages.every(function (stage) { return stage.rows && stage.columns; }), example.label + ' must keep intermediate relations.');
+    });
+  });
+  test('Advanced compatibility demo preserves two JOINs, WHERE, ORDER BY and reportable output', function () {
+    const result = execute(global.SqlFlow.examples[34].query);
+    assert(result.parsed.joins.length === 2 && result.stages.some(function (stage) { return stage.label === 'WHERE'; }) && result.stages.some(function (stage) { return stage.label === 'ORDER BY'; }), 'All operations must remain visible.');
+    assert(result.result[0]['s.name'] === 'Alice Johnson' && result.result.length === 5, 'Expected the real ordered A-grade join result.');
+  });
+  test('Unknown table diagnostic names actual available tables and custom-table remedy', function () {
+    assertThrows('SELECT * FROM nonexistent_employee_directory;', 'Available tables: students, courses, enrollments, departments');
+    assertThrows('SELECT * FROM nonexistent_employee_directory;', 'create or import');
+  });
+  test('Unknown column diagnostic identifies the missing name and available columns', function () {
+    assertThrows('SELECT salary FROM students;', 'Column not found in SELECT: "salary"');
+    assertThrows('SELECT salary FROM students;', 'student_id, name, department, cgpa, year, city');
+  });
+  test('Aggregate aliases resolve to visible output headers and ORDER BY names', function () {
+    const result = execute('SELECT department, COUNT(*) AS total\nFROM students GROUP BY department ORDER BY total DESC;');
+    assert(result.resultColumns.join(',') === 'department,total' && result.result[0].total === 1, 'Aliased aggregate output and ordering must resolve.');
+    assertThrows('SELECT COUNT(*) AS 123 FROM students;', 'output alias after AS');
+  });
+  test('NULL, BETWEEN and COUNT DISTINCT now execute with SQL semantics', function () {
+    assert(execute('SELECT name FROM students WHERE city IS NULL;').result.length===0,'Non-null built-in city values do not match IS NULL.');
+    assert(execute('SELECT name FROM students WHERE cgpa BETWEEN 8 AND 9;').result.length>0,'Inclusive numeric bounds execute.');
+    assert(execute('SELECT COUNT(DISTINCT department) FROM courses;').result[0]['COUNT(DISTINCT department)']===7,'Distinct aggregate counts unique values.');
+  });
+  test('Multiple ORDER BY keys execute while unsupported RIGHT JOIN stays explicit', function () {
+    assert(execute('SELECT name FROM students ORDER BY name ASC, cgpa DESC;').result.length===10,'Multiple ordering keys execute.');
+    assertThrows('SELECT s.name FROM students s RIGHT JOIN enrollments e ON s.student_id=e.student_id;', 'use INNER JOIN or LEFT JOIN');
+  });
+  test('Unexpected character diagnostics translate offsets to multiline positions', function () {
+    assertThrows('SELECT name\nFROM students\nWHERE city = @;', 'unexpected character "@"');
+    assertThrows('SELECT name\nFROM students\nWHERE city = @;', 'line 3, column 14');
+  });
+  test('Contextual Help distinguishes malformed output aliases from ambiguous table columns', function () {
+    assert(global.SqlFlow.help.suggestion('expected an output alias after AS').includes('AS'), 'Malformed alias help must describe the supported syntax.');
+    assert(global.SqlFlow.help.suggestion('Ambiguous column "id"').includes('Qualify'), 'Ambiguous source columns still need qualification advice.');
+  });
+
+  function fixtureQuery(sql, dataset) { return global.SqlFlow.executor.executeQuery(sql, global.SqlFlow.quizBank.fixture(dataset || 'market')); }
+  test('v1.4 output aliases propagate through stages, plan, explanation and report', function () {
+    const result = execute('SELECT name AS student_name FROM students ORDER BY student_name DESC LIMIT 1;');
+    assert(result.resultColumns.join(',') === 'student_name' && result.result[0].student_name === 'Sara Ahmed', 'Alias must determine the visible header and ordering.');
+    assert(result.stages.every(function (stage) { return stage.label === 'FROM' || stage.columns.includes('student_name'); }), 'Projected stages must carry the alias.');
+    const explained = explainSelect('SELECT COUNT(*) AS total FROM students;');
+    explained.queryPlan = global.SqlFlow.queryplan.buildQueryPlan(explained);
+    assert(explained.resultColumns[0] === 'total' && explained.result[0].total === 10, 'Aggregate alias must be visible.');
+    assert(JSON.stringify(explained.queryPlan).includes('AS total') && JSON.stringify(explained.explanation).includes('AS total'), 'Plan and explanation must preserve alias.');
+  });
+  test('v1.4 duplicate and colliding aliases are rejected clearly', function () {
+    assertThrows('SELECT name AS label, city AS LABEL FROM students;', 'Duplicate SELECT output name');
+    assertThrows('SELECT name AS city FROM students ORDER BY city;', 'Ambiguous ORDER BY name');
+    assertThrows('SELECT name AS FROM students;', 'output alias after AS');
+  });
+  test('v1.4 NULL comparison and NOT obey three-valued WHERE logic', function () {
+    assert(fixtureQuery('SELECT oid FROM orders WHERE amount = NULL;').result.length === 0, '= NULL is UNKNOWN, never true.');
+    assert(fixtureQuery('SELECT oid FROM orders WHERE amount IS NULL;').result[0].oid === 12, 'IS NULL must find null row.');
+    assert(fixtureQuery('SELECT oid FROM orders WHERE amount IS NOT NULL;').result.length === 5, 'IS NOT NULL must exclude null.');
+    assert(fixtureQuery('SELECT oid FROM orders WHERE NOT (amount = NULL);').result.length === 0, 'NOT UNKNOWN stays UNKNOWN.');
+    const disjunction = fixtureQuery("SELECT oid FROM orders WHERE amount = NULL OR status = 'paid';");
+    assert(disjunction.result.map(function(row){return row.oid;}).join(',') === '10,12,14', 'UNKNOWN OR TRUE must be TRUE.');
+    assert(disjunction.stages.find(function(stage){return stage.label==='WHERE';}).simulation.actions.some(function(action){return action.truthValue===null;}), 'UNKNOWN must be visible in trace.');
+    assert(fixtureQuery("SELECT oid FROM orders WHERE amount = NULL AND status = 'cancelled';").result.length===0, 'UNKNOWN AND FALSE is FALSE.');
+  });
+  test('v1.4 LEFT JOIN IS NULL identifies unmatched source rows', function () {
+    const result=execute('SELECT s.name FROM students s LEFT JOIN enrollments e ON s.student_id=e.student_id WHERE e.enrollment_id IS NULL;');
+    assert(result.result.length===1 && result.result[0]['s.name']==='Samuel Green','Unmatched left row must survive NULL filter.');
+  });
+  test('v1.4 IN and NOT IN respect NULL on either side', function () {
+    assert(fixtureQuery("SELECT oid FROM orders WHERE status IN ('paid', NULL);").result.length===3,'IN finds matching values despite NULL member.');
+    assert(fixtureQuery("SELECT oid FROM orders WHERE status NOT IN ('paid', NULL);").result.length===0,'NOT IN with NULL does not accept unmatched rows.');
+    assert(fixtureQuery('SELECT oid FROM orders WHERE amount IN (NULL, 40);').result[0].oid===10,'IN must accept a definite match.');
+    assert(fixtureQuery('SELECT oid FROM orders WHERE amount NOT IN (40, NULL);').result.length===0,'NOT IN NULL remains unknown.');
+    assertThrows('SELECT name FROM students WHERE city IN ();','IN requires at least one value');
+  });
+  test('v1.4 BETWEEN inclusive bounds and NOT BETWEEN unknown semantics', function () {
+    assert(fixtureQuery('SELECT oid FROM orders WHERE amount BETWEEN 0 AND 40 ORDER BY oid;').result.map(function(r){return r.oid;}).join(',')==='10,13,15','BETWEEN includes both endpoints.');
+    assert(fixtureQuery('SELECT oid FROM orders WHERE amount NOT BETWEEN 0 AND 40;').result.map(function(r){return r.oid;}).join(',')==='11,14','NOT BETWEEN excludes NULL amount.');
+    assert(fixtureQuery('SELECT oid FROM orders WHERE amount BETWEEN NULL AND 100;').result.length===0,'NULL bound yields no true rows.');
+    assertThrows('SELECT oid FROM orders WHERE amount BETWEEN 0 40;','expected AND');
+  });
+  test('v1.4 LIKE wildcards, escaping, negation and NULL pattern', function () {
+    const source={resolveTable:function(){return {name:'samples',columns:['text'],schema:[{name:'text',type:'TEXT'}],rows:[{text:'A_1'},{text:'A%2'},{text:'Ax3'},{text:null}]};}};
+    const run=function(sql){return global.SqlFlow.executor.executeQuery(sql,source);};
+    assert(run("SELECT text FROM samples WHERE text LIKE 'A_%';").result.length===3,'% and _ match pattern positions.');
+    assert(run("SELECT text FROM samples WHERE text LIKE 'A!_%' ESCAPE '!';").result[0].text==='A_1','ESCAPE treats underscore literally.');
+    assert(run("SELECT text FROM samples WHERE text LIKE 'A!%%' ESCAPE '!';").result[0].text==='A%2','ESCAPE treats percent literally.');
+    assert(run("SELECT text FROM samples WHERE text NOT LIKE 'A_%';").result.length===0,'NOT LIKE preserves NULL unknown.');
+    assert(run('SELECT text FROM samples WHERE text LIKE NULL;').result.length===0,'LIKE NULL is unknown.');
+    let failed=false;try{run("SELECT text FROM samples WHERE text LIKE 'A!' ESCAPE '!';");}catch(error){failed=/ends with its ESCAPE/.test(error.message);}assert(failed,'Trailing ESCAPE must fail before scanning.');
+  });
+  test('v1.4 multiple ordering keys, stability, hidden keys and NULL order', function () {
+    const result=fixtureQuery('SELECT id FROM visits ORDER BY ward ASC, minutes DESC;', 'clinic');
+    assert(result.result.map(function(r){return r.id;}).join(',')==='2,1,6,3,4,5','Second key and stable ties must match actual order.');
+    const stage=result.stages.find(function(s){return s.label==='ORDER BY';});
+    assert(stage.simulation.ordering.terms.length===2 && stage.simulation.actions[0].orderingKeys.length===2,'Trace must expose all ordering keys.');
+  });
+  test('v1.4 COUNT DISTINCT excludes NULL and reports unique contributions', function () {
+    const result=fixtureQuery('SELECT COUNT(amount) AS all_amounts, COUNT(DISTINCT amount) AS unique_amounts FROM payments;');
+    assert(result.result[0].all_amounts===4 && result.result[0].unique_amounts===3,'Duplicates count once.');
+    const groups=fixtureQuery('SELECT ward, COUNT(DISTINCT minutes) AS unique_minutes FROM visits GROUP BY ward ORDER BY unique_minutes DESC;','clinic');
+    assert(groups.result[0].ward==='East' && groups.result[0].unique_minutes===2 && groups.result[1].ward==='West' && groups.result[1].unique_minutes===2,'NULL and duplicate minutes excluded per group with stable tie ordering.');
+    assert(groups.stages.find(function(s){return s.label==='SELECT / AGGREGATE';}).simulation.actions.some(function(a){return a.aggregateDetails && a.aggregateDetails[0].contributing===2;}),'Running aggregate trace uses distinct contribution count.');
+    assertThrows('SELECT COUNT(DISTINCT *) FROM students;','COUNT(DISTINCT *) is invalid');
+    assertThrows('SELECT SUM(DISTINCT cgpa) FROM students;','supported only by COUNT');
+  });
+  test('Five v1.4 demos execute and expose reportable stages', function () {
+    [3,1,3,10,6].forEach(function(count,index){const example=global.SqlFlow.examples[35+index],result=execute(example.query);assert(result.result.length===count,example.label+' must return '+count+' rows.');assert(result.stages.every(function(stage){return stage.columns&&stage.rows&&stage.simulation;}),example.label+' must have stage traces.');});
+  });
+  test('v1.4 quiz SQL grading accepts equivalent output aliases without weakening projection checks', function () {
+    const engine=global.SqlFlow.quizEngine;
+    const simple=engine.question('projection-05');
+    assert(engine.grade(simple,'SELECT name AS learner_name FROM learners;').correct,'An output alias should not change a correct projection.');
+    assert(!engine.grade(simple,'SELECT learner_id AS learner_name FROM learners;').correct,'Aliasing the wrong source column must not earn credit.');
+    const aggregate=engine.question('projection-x10');
+    assert(engine.grade(aggregate,"SELECT c.region AS area, SUM(o.amount) AS paid_total FROM customers c JOIN orders o ON c.cid = o.cid WHERE o.status = 'paid' GROUP BY c.region;").correct,'Aggregate and grouped column aliases preserve semantic output.');
+  });
+
   global.SqlFlow.stressTests.register({ test: test, assert: assert, execute: execute });
   global.SqlFlow.complianceTests.register({ test: test, assert: assert, execute: execute });
   global.SqlFlow.learningTests.register({ test: test, assert: assert, execute: execute });

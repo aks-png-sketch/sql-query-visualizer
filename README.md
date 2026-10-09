@@ -1,4 +1,4 @@
-# SQLFlow Version 1.3 — local learning release candidate
+# SQLFlow Version 1.4 — expanded SQL compatibility
 
 SQLFlow is an interactive SQL Query Execution Visualizer built as an educational Database Systems project. It lets learners write SQL, inspect intermediate datasets, compare relational algebra, explore a synchronized logical query tree, and observe data changes and transaction state—all in a static browser application.
 
@@ -25,13 +25,18 @@ SQLFlow is an interactive SQL Query Execution Visualizer built as an educational
 
 SQLFlow supports one statement at a time:
 
-- `SELECT`, `DISTINCT`, `FROM`, `WHERE`, `AND`, `OR`, and parentheses
+- `SELECT`, `DISTINCT`, `FROM`, `WHERE`, `AND`, `OR`, `NOT`, and parentheses
+- `AS` output aliases, including aggregate aliases; unambiguous aliases work in `ORDER BY`
+- `IS NULL`, `IS NOT NULL`, `[NOT] IN (literal, ...)`, `[NOT] BETWEEN literal AND literal`, and `[NOT] LIKE 'pattern' [ESCAPE 'x']`
+- SQL three-valued predicate logic: comparisons with `NULL` are unknown; `WHERE` and `HAVING` retain only true rows
 - `INNER JOIN` / `JOIN` and `LEFT JOIN` with equality-based `ON` conditions
-- `GROUP BY`, `HAVING`, `ORDER BY`, and `LIMIT`
-- `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX`
+- `GROUP BY`, `HAVING`, multi-key `ORDER BY`, and `LIMIT`
+- `COUNT`, `COUNT(DISTINCT column)`, `SUM`, `AVG`, `MIN`, and `MAX`
 - Table aliases and qualified column references
 - `INSERT`, `UPDATE`, and `DELETE` on custom tables
 - `BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT`, and `ROLLBACK TO`
+
+`LIKE` is case-sensitive; `%` matches zero or more characters and `_` matches one. An optional single-character `ESCAPE` quotes those wildcards. SQLFlow orders `NULL` last in ASC and first in DESC and retains input order when all keys tie. It does not support subqueries, implicit output aliases, RIGHT/FULL/CROSS JOIN, window functions, multi-column COUNT DISTINCT, or physical query-plan algorithms.
 
 ## Run locally
 
@@ -81,7 +86,7 @@ browser-learning-tests.cjs Real Chrome clicks and responsive checks without pack
 
 Open `tests.html` in a browser. The page runs the complete dependency-free regression suite and reports the pass total. It can also be loaded by a headless browser for automated verification.
 
-This Version 1.3 refinement began at 1,010/1,010 regressions, 159/159 Chrome checks, and 102 questions. The expanded suite passes 1,477/1,477 regressions and 412/412 real Chrome interaction checks. Run `node quiz-quality-audit.cjs` for the answer audit and `node browser-learning-tests.cjs --http` for real Chrome interactions. The Chrome runner uses Node's built-in WebSocket/CDP support (tested with Node 24), an isolated temporary profile, a temporary local HTTP preview, and system-temp artifacts. Set `SQLFLOW_CHROME` if Chrome is installed elsewhere. No npm installation is needed. This local candidate has not been committed, pushed, or deployed.
+Version 1.4 passed 1,497/1,497 browser regressions, 55/55 focused real-Chrome compatibility checks, and 412/412 complete real-Chrome interaction checks before release. The earlier Version 1.3 compatibility baseline passed 1,486/1,486 regressions and 25/25 focused Chrome checks. Run `node quiz-quality-audit.cjs` for the answer audit, `node browser-learning-tests.cjs --http --v14-smoke` for focused compatibility checks, or `node browser-learning-tests.cjs --http` for the complete interaction suite. The Chrome runner uses Node's built-in WebSocket/CDP support (tested with Node 24), an isolated temporary profile, a temporary local HTTP preview, and system-temp artifacts. Set `SQLFLOW_CHROME` if Chrome is installed elsewhere. No npm installation is needed.
 
 ## Learn → Visualize → Practice → Review
 

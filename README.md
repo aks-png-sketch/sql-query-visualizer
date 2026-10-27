@@ -1,4 +1,10 @@
-# SQLFlow Version 1.4 — expanded SQL compatibility
+# SQLFlow Version 1.5
+
+The public frontend runs entirely on GitHub Pages: SQL execution, animations, Quiz, Competitive Exam and References require no backend. Quiz and exam history on the public site is stored in the current browser, not PostgreSQL. The optional localhost PostgreSQL/FastAPI integration remains available for local demonstration; see [backend/README.md](backend/README.md). No database credentials or data files belong in the public repository.
+
+The Competitive Exam section contains 75 original, solved practice questions across ten DBMS topics. Its GATE-style and PSU-style tags describe practice format; none claim to be a historical exam question. A separate References panel links verified textbooks, research and official documentation. AI Tutor is disabled on the public site; the optional local version requires explicit server-side provider configuration. Verified deterministic answers remain available without AI.
+
+Reference examples: [Database System Concepts, 7th ed.](https://www.yale.db-book.com/) for relational theory; [Selinger et al. (1979)](https://doi.org/10.1145/582095.582099) for historical optimizer research; [PostgreSQL 18 documentation](https://www.postgresql.org/docs/18/tutorial-select.html) for SQL behavior; and the [official GATE 2025 papers and keys](https://gate2025.iitr.ac.in/question-papers.html) for exam format. Research on physical optimizers is background reading, not a claim that SQLFlow implements those algorithms.
 
 SQLFlow is an interactive SQL Query Execution Visualizer built as an educational Database Systems project. It lets learners write SQL, inspect intermediate datasets, compare relational algebra, explore a synchronized logical query tree, and observe data changes and transaction state—all in a static browser application.
 

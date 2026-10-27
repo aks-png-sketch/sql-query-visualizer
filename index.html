@@ -20,12 +20,14 @@
             <button class="secondary" type="button" data-academic-section="learn">Learn</button>
             <button class="secondary" type="button" data-academic-section="help">Help</button>
             <button class="secondary" type="button" data-academic-section="quiz">QUIZ</button>
+            <button class="secondary" type="button" data-academic-section="competitive">COMPETITIVE EXAM</button>
+            <button class="secondary" type="button" data-academic-section="references">References</button>
             <button class="secondary" type="button" data-academic-section="project">Project</button>
             <button class="secondary" type="button" data-academic-section="developed">Developed By</button>
           </nav>
           <button id="themeToggleBtn" class="secondary" type="button" aria-label="Switch to day theme" aria-pressed="false">Day Mode</button>
           <button id="presentationModeBtn" class="secondary" type="button" aria-pressed="false">Presentation Mode</button>
-          <div class="version-badge">Version 1.4</div>
+          <div class="version-badge">Version 1.5</div>
           <div class="badge">Database Systems Lab</div>
         </div>
       </header>
@@ -148,29 +150,32 @@ ORDER BY cgpa DESC;</textarea>
           <div id="learnTopics" class="learn-grid"></div>
           <section id="joinVideoLesson" class="join-video-lesson" aria-labelledby="joinVideoTitle"><h3 id="joinVideoTitle">JOIN video tutorial</h3><p>Joins in SQL — Neso Academy. If the player is blocked by browser or YouTube restrictions, use the exact Watch on YouTube link below.</p><div class="responsive-video"><iframe src="https://www.youtube-nocookie.com/embed/h4EQBAzW3m4" title="Joins in SQL — Neso Academy" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div><p><a href="https://youtu.be/h4EQBAzW3m4?si=1JtslSqT4QU3ZziA" target="_blank" rel="noopener noreferrer">Watch on YouTube</a></p><div class="simulation-controls"><button type="button" data-join-learning="lab">Run JOIN Simulation</button><button type="button" data-join-learning="help">JOIN Help</button><button type="button" data-join-learning="quiz">Practice JOIN Questions</button></div></section>
           <p class="learn-note">The JOIN video is an external instructional lesson. A student-made project demonstration recording is not included.</p>
-          <section><h3>References</h3><ul><li>Silberschatz, Korth, and Sudarshan — <cite>Database System Concepts</cite>.</li><li>Elmasri and Navathe — <cite>Fundamentals of Database Systems</cite>.</li><li><a href="https://www.postgresql.org/docs/current/tutorial-sql.html">PostgreSQL SQL Tutorial</a> for general SQL concepts.</li><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage">MDN Web Docs</a> for browser storage APIs.</li></ul></section>
+          <section><h3>References</h3><p>Explore verified database textbooks, SQL research, PostgreSQL documentation, and official GATE resources. Research on physical query optimizers is background reading, not an SQLFlow implementation claim.</p><button type="button" data-academic-section="references">Open full References</button></section>
         </section>
         <section id="helpSection" class="academic-section hidden">
           <h3>Interactive SQLFlow Manual</h3><details><summary>Quick-start checklist</summary><ol class="workflow-list"><li>Choose a built-in table or create/import custom data.</li><li>Write SQL or select a built-in example.</li><li>Run the query with Run Query or Ctrl/Cmd + Enter.</li><li>Inspect stages with Previous, Next, or Auto Play.</li><li>Open Explanation, Relational Algebra, or Query Tree.</li><li>Download the execution report.</li></ol></details>
           <div id="interactiveHelp"></div>
           <div class="help-grid">
             <section><h4>Supported input</h4><p>Enter one supported statement at a time: SELECT, INSERT, UPDATE, DELETE, BEGIN, COMMIT, ROLLBACK, SAVEPOINT, or ROLLBACK TO. SELECT supports FROM, INNER/LEFT JOIN with equality ON, WHERE with comparisons and AND/OR/parentheses, GROUP BY, HAVING, DISTINCT, ORDER BY, LIMIT, and COUNT/SUM/AVG/MIN/MAX. Data changes apply to custom tables.</p></section>
-            <section><h4>Current limits</h4><p>SQLFlow does not implement subqueries, CTEs, window functions, RIGHT/FULL OUTER JOIN, physical plans, index simulation, cost-based optimization, backend connections, or concurrency/locking.</p></section>
+            <section><h4>Current limits</h4><p>SQLFlow does not implement subqueries, CTEs, window functions, RIGHT/FULL OUTER JOIN, physical plans, index simulation, cost-based optimization, or concurrency/locking. The public GitHub Pages site stores quiz history in this browser only; the optional PostgreSQL backend runs locally and is not part of the public site.</p></section>
             <section><h4>Input and examples</h4><p>SQLFlow accepts supported SELECT, DML, and transaction statements. Pick an example, edit it in the SQL editor, then run one statement at a time.</p></section>
             <section><h4>Execution navigation</h4><p>Previous and Next select intermediate datasets. Auto Play advances automatically. Final Result shows the completed output.</p></section>
             <section><h4>Reading visualizations</h4><p>Execution tables show rows after each operation. JOIN view highlights compared keys. Algebra summarizes operators, Query Tree shows the logical plan, and Explanation narrates measured results.</p></section>
             <section><h4>Transactions</h4><p>BEGIN opens a working copy; COMMIT persists it; ROLLBACK discards it. SAVEPOINT and ROLLBACK TO manage checkpoints.</p></section>
             <section><h4>Custom data and reset</h4><p>Create typed tables or import CSV in Database Explorer. Reset Demo restores the default query and preserves custom tables unless Clear Custom Data is explicitly confirmed.</p></section>
             <section><h4>Presentation and reports</h4><p>Presentation Mode emphasizes teaching views. Open Execution Report shows the report with separate Download TXT Report and Print / Save as PDF actions.</p></section>
+            <section><h4>Competitive Exam and AI Tutor</h4><p>Browse 75 original solved practice questions, filter by topic, difficulty or exam style, then take a practice or test attempt. Public-site scores and answers stay in this browser; the optional local backend can also save them to PostgreSQL. AI Tutor is unavailable on the public site and never changes verified grading.</p></section>
             <section><h4>Keyboard shortcuts</h4><p>Ctrl/Cmd+Enter runs SQL, Alt+Right/Left changes stage, and Escape closes an open panel or Presentation Mode.</p></section>
           </div>
         </section>
         <section id="quizSection" class="academic-section hidden"></section>
+        <section id="competitiveSection" class="academic-section hidden"></section>
+        <section id="referencesSection" class="academic-section hidden"><h3>References and further reading</h3><p>Verified sources for database concepts and general background. SQLFlow illustrates logical operations; it does not implement the physical optimization methods in the research papers.</p><div id="referencesList" class="references-list"></div></section>
         <section id="projectSection" class="academic-section hidden">
           <h3>Project overview</h3><dl class="academic-facts"><div><dt>Problem Statement</dt><dd>Students can execute SQL queries but often cannot see how rows change through each logical operation.</dd></div><div><dt>Objective</dt><dd>Build an interactive browser-based system that visualizes SQL execution step-by-step and connects SQL syntax with relational operations and intermediate results.</dd></div><div><dt>Area</dt><dd>Core Database Systems / Database Management Systems</dd></div><div><dt>Activity Type</dt><dd>Innovation Sprint / Working Prototype</dd></div></dl>
           <h3>System architecture</h3><div class="architecture-flow" aria-label="System processing pipeline"><span>SQL Input</span><b>↓</b><span>Parser</span><b>↓</b><span>Parsed AST</span><b>↓</b><span>Execution Engine</span><b>↓</b><span>Stages + Metadata</span><b>↓</b><span>Visualization / Educational Output Layer</span><b>↓</b><span>Final Result / Explanation / Relational Algebra / Query Tree / Execution Report</span></div>
           <h3>Module design</h3><div id="moduleDesign" class="module-grid"></div>
-          <h3>Interactive learning modules</h3><p>simulation.js replays executor instrumentation; help.js controls the searchable manual and guided tutorials; quiz-bank.js contains authored questions and isolated fixtures; quiz-engine.js handles grading and persistence; quiz.js renders attempts and reviews.</p>
+          <h3>Interactive learning modules</h3><p>simulation.js replays executor instrumentation; help.js controls the searchable manual and guided tutorials; quiz-bank.js contains authored questions and isolated fixtures; quiz-engine.js handles grading and persistence; quiz.js renders attempts and reviews. The separate competitive-bank.js and competitive.js provide original exam-style practice; references.js lists verified further reading, and the optional AI Tutor uses a local FastAPI proxy when explicitly configured.</p>
           <h3>Working methodology</h3><ol><li>The user enters one supported SQL statement.</li><li>The token-aware parser validates syntax and creates a structured AST.</li><li>The executor reads SQLFlow's in-browser tables and records rows, columns, and operation metadata at each supported logical stage.</li><li>The visualizer shows intermediate relations and measured row-count changes.</li><li>The same structured result feeds Final Result, deterministic Explanation, and the downloadable execution report. SELECT queries also produce relational algebra and a logical query tree.</li><li>INSERT, UPDATE, DELETE, and transaction controls use the working-copy and snapshot mechanism for pending changes, savepoints, commit, and rollback.</li></ol>
           <h3>Testing and reliability</h3><p><strong>SQLFlow Version 1.4 passed 1,497 browser regressions and 412 complete Chrome interaction checks before release.</strong> Coverage includes the SQL engine, transactions, reports, safe rendering, quiz fixture keys and grading, action replay, state cleanup, and learning navigation. The dependency-free Chrome suite exercises actual buttons, tutorials, downloads, and responsive dialogs.</p>
           <h3>Creative features</h3><p>Intermediate datasets, JOIN comparison highlighting, synchronized query trees, deterministic English explanations, relational algebra, custom tables and CSV, transaction snapshots and savepoints, Presentation Mode, keyboard navigation, and extensive browser testing extend SQLFlow beyond a basic query executor.</p>
@@ -249,7 +254,12 @@ ORDER BY cgpa DESC;</textarea>
     <script src="js/quiz-fixtures.js"></script>
     <script src="js/quiz-expansion.js"></script>
     <script src="js/quiz-engine.js"></script>
+    <script src="js/quiz-sync.js"></script>
+    <script src="js/ai-tutor.js"></script>
     <script src="js/quiz.js"></script>
+    <script src="js/competitive-bank.js"></script>
+    <script src="js/competitive.js"></script>
+    <script src="js/references.js"></script>
     <script src="js/visualizer.js"></script>
     <script src="js/examples.js"></script>
     <script src="js/ui.js"></script>

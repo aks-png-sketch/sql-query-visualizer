@@ -439,7 +439,7 @@
     element('resetDemoBtn').addEventListener('click', resetDemo);
     element('themeToggleBtn').addEventListener('click', function () { global.SqlFlow.ui.toggleTheme(); });
     element('presentationModeBtn').addEventListener('click', function () { global.SqlFlow.ui.togglePresentationMode(); });
-    document.querySelectorAll('[data-academic-section]').forEach(function (button) { button.addEventListener('click', function () { global.SqlFlow.help.stop(false); if (button.dataset.academicSection === 'quiz') { global.SqlFlow.quiz.openTopic('all'); } else { global.SqlFlow.academic.open(button.dataset.academicSection); } }); });
+    document.querySelectorAll('[data-academic-section]').forEach(function (button) { button.addEventListener('click', function () { global.SqlFlow.help.stop(false); if (button.dataset.academicSection === 'quiz') { global.SqlFlow.quiz.openTopic('all'); } else if (button.dataset.academicSection === 'competitive') { global.SqlFlow.competitive.open(); } else { global.SqlFlow.academic.open(button.dataset.academicSection); } }); });
     element('closeAcademicBtn').addEventListener('click', function () { global.SqlFlow.academic.close(); });
     element('academicModal').addEventListener('click', function (event) { if (event.target === element('academicModal')) { global.SqlFlow.academic.close(); } });
     global.SqlFlow.academic.bindReportControls();

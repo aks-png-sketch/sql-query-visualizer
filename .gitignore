@@ -1,0 +1,5 @@
+backend/.pgdata/
+backend/.venv/
+backend/__pycache__/
+backend/*.log
+backend/*.pid

@@ -9,7 +9,8 @@ const http=require('node:http');
 const profile=fs.mkdtempSync(path.join(os.tmpdir(),'sqlflow-learning-browser-'));
 const artifacts=fs.mkdtempSync(path.join(os.tmpdir(),'sqlflow-learning-artifacts-'));
 const chromePath=process.env.SQLFLOW_CHROME || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-let url=pathToFileURL(path.join(__dirname,'index.html')).href,chrome=null,previewServer=null;
+let url=process.env.SQLFLOW_TEST_URL||pathToFileURL(path.join(__dirname,'index.html')).href,chrome=null,previewServer=null;
+if(process.argv.includes('--regression'))url=pathToFileURL(path.join(__dirname,'tests.html')).href;
 async function startBrowser(){if(process.argv.includes('--http')){previewServer=http.createServer((request,response)=>{try{const requested=decodeURIComponent(new URL(request.url,'http://localhost').pathname),parts=requested.split('/');if(parts.some(part=>part.startsWith('.'))){response.writeHead(403);response.end('Forbidden');return;}const file=path.resolve(__dirname,'.'+(requested==='/'?'/index.html':requested)),types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jpeg':'image/jpeg','.jpg':'image/jpeg','.png':'image/png'};const type=types[path.extname(file)];if(!file.startsWith(__dirname+path.sep)||!type){response.writeHead(403);response.end('Forbidden');return;}fs.readFile(file,(error,content)=>{response.writeHead(error?404:200,{'Content-Type':type});response.end(error?'Not found':content);});}catch(_){response.writeHead(400);response.end('Bad request');}});await new Promise(resolve=>previewServer.listen(0,'127.0.0.1',resolve));url='http://127.0.0.1:'+previewServer.address().port+'/';}chrome=spawn(chromePath,['--headless=new','--disable-gpu','--no-sandbox','--no-first-run','--disable-extensions','--remote-debugging-port=0','--window-size=1366,1000','--user-data-dir='+profile,url],{stdio:['ignore','ignore','pipe'],windowsHide:true});let chromeErrors='';chrome.stderr.on('data',chunk=>{chromeErrors=(chromeErrors+chunk.toString()).slice(-4000);});chrome.on('exit',(code,signal)=>{if(code||signal)console.error('Chrome exited:',code,signal,chromeErrors);});}
 let socket,sequence=0;const pending=new Map(),errors=[],checks=[],captures=[];let videoAttempt=null;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -68,6 +69,119 @@ async function smoke(){
   await click('#downloadReportBtn');assert(await evaluate('!document.getElementById("reportModal").classList.contains("hidden")'),'Execution report opens');await click('#closeReportBtn');assert(errors.length===0,'No application JavaScript exception or console error');
   console.log(JSON.stringify({passed:checks.length,checks,consoleErrors:errors,artifacts},null,2));
 }
+async function v15Smoke(){
+  assert(await evaluate('fetch("/api/health").then(r=>r.json()).then(r=>r.database==="postgresql")'),'Live API uses PostgreSQL');
+  await click('[data-academic-section="quiz"]');
+  await evaluate('window.confirm=()=>true;SqlFlow.quiz.begin({ids:["basics-01"],count:1,mode:"practice"})');
+  const id=await evaluate('SqlFlow.quiz.getData().attempt.id');
+  await answer(await activeQuestion());await button('Check Answer');await button('Submit Attempt');
+  for(let i=0;i<30&&!await evaluate('document.getElementById("quizDatabaseStatus")?.textContent==="Saved in PostgreSQL."');i++)await pause(100);
+  assert(await evaluate('document.getElementById("quizDatabaseStatus")?.textContent==="Saved in PostgreSQL."'),'Completed quiz is saved through the visible UI');
+  assert(await evaluate('fetch("/api/quiz-attempts/"+'+JSON.stringify(id)+').then(r=>r.json()).then(r=>r.id==='+JSON.stringify(id)+'&&r.score===1&&r.answers.length===1)'),'API reads the same saved score and answer');
+  await evaluate('localStorage.removeItem(SqlFlow.quizEngine.KEY)');await send('Page.reload');await ready();
+  for(let i=0;i<30&&!await evaluate('SqlFlow.quiz.getData().history.some(a=>a.id==='+JSON.stringify(id)+')');i++)await pause(100);
+  assert(await evaluate('SqlFlow.quiz.getData().history.some(a=>a.id==='+JSON.stringify(id)+')'),'History reloads from PostgreSQL after browser storage is cleared');
+  await click('[data-academic-section="quiz"]');assert(await evaluate('document.querySelector("#quizSection").textContent.includes("Previous results")'),'Persisted attempt appears in Quiz history');
+  await evaluate('window.confirm=()=>true;window.__realFetch=window.fetch;window.fetch=(path,options)=>String(path).startsWith("/api/")?Promise.reject(new Error("Offline test")):window.__realFetch(path,options);SqlFlow.quiz.begin({ids:["basics-01"],count:1,mode:"practice"})');
+  await answer(await activeQuestion());await button('Check Answer');await button('Submit Attempt');
+  for(let i=0;i<30&&!await evaluate('document.getElementById("quizDatabaseStatus")?.textContent.includes("unavailable")');i++)await pause(100);
+  assert(await evaluate('document.getElementById("quizDatabaseStatus")?.textContent.includes("result remains saved locally")'),'Quiz remains usable while API is unavailable');
+  assert(await evaluate('SqlFlow.quizEngine.load().history.some(a=>a.id===SqlFlow.quiz.getData().attempt.id)'),'Offline attempt remains in localStorage');
+  assert(errors.length===0,'No browser exceptions');console.log(JSON.stringify({passed:checks.length,checks,consoleErrors:errors,id},null,2));
+}
+async function competitiveSmoke(){
+  assert(await evaluate('SqlFlow.competitiveBank.questions.length===75'),'Competitive bank contains 75 questions');
+  await click('[data-academic-section="competitive"]');
+  assert(await evaluate('document.getElementById("academicTitle").textContent==="Competitive Exam"'),'Competitive Exam navigation opens');
+  assert(await evaluate('document.querySelectorAll("#competitiveSection .competitive-card").length===75'),'Browse shows all questions');
+  await evaluate('(()=>{const e=document.querySelectorAll("#competitiveSection select")[0];e.value="Indexing and B/B+ trees";e.dispatchEvent(new Event("change",{bubbles:true}));})()');
+  assert(await evaluate('document.querySelectorAll("#competitiveSection .competitive-card").length===7'),'Topic filter selects its seven questions');
+  await evaluate('(()=>{const e=document.querySelectorAll("#competitiveSection select")[1];e.value="advanced";e.dispatchEvent(new Event("change",{bubbles:true}));})()');
+  assert(await evaluate('document.querySelectorAll("#competitiveSection .competitive-card").length===2'),'Difficulty filter narrows the topic');
+  await evaluate('(()=>{const e=document.querySelectorAll("#competitiveSection select")[2];e.value="GATE-style practice";e.dispatchEvent(new Event("change",{bubbles:true}));})()');
+  assert(await evaluate('document.querySelectorAll("#competitiveSection .competitive-card").length===1'),'Exam-category filter narrows the topic');
+  for(const index of [0,1,2])await evaluate('(()=>{const e=document.querySelectorAll("#competitiveSection select")['+index+'];e.value="all";e.dispatchEvent(new Event("change",{bubbles:true}));})()');
+  await evaluate('(()=>{const e=document.querySelector("#competitiveSection input[type=search]");e.value="serializability";e.dispatchEvent(new Event("input",{bubbles:true}));})()');
+  assert(await evaluate('document.querySelectorAll("#competitiveSection .competitive-card").length>0&&document.querySelectorAll("#competitiveSection .competitive-card").length<75'),'Search filters visible questions');
+  await button('Show Answer and Solution','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.querySelector("#competitiveSection .competitive-answer")?.textContent.includes("Correct answer")'),'Answer reveal works');
+  await button('Practice / Test','document.getElementById("competitiveSection")');
+  await button('Start Attempt','document.getElementById("competitiveSection")');
+  await evaluate('(()=>{const a=SqlFlow.competitive.getState().attempt,q=SqlFlow.competitiveBank.questions.find(x=>x.id===a.ids[a.index]);document.querySelectorAll("#competitiveSection input[type=radio]")[(q.correct+1)%4].dataset.auditTarget="true";})()');
+  await click('#competitiveSection [data-audit-target]');
+  await button('Check Answer','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.querySelector("#competitiveSection .competitive-card")?.textContent.includes("Correct answer")||document.querySelector("#competitiveSection .competitive-card")?.textContent.includes("Correct.")'),'Practice shows verified feedback');
+  await button('Ask AI Tutor (optional)','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.querySelector("#competitiveSection .competitive-card")?.textContent.includes("AI Tutor not configured")'),'Unconfigured AI Tutor explains its status without a provider call');
+  await evaluate('window.confirm=()=>true');
+  await button('Submit Attempt','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.querySelector("#competitiveSection")?.textContent.includes("Exam Practice Result")'),'Score appears after submission');
+  const examId=await evaluate('SqlFlow.competitive.getState().history.at(-1).id');
+  for(let i=0;i<30&&!await evaluate('document.getElementById("competitiveRemoteStatus")?.textContent==="Saved in PostgreSQL."');i++)await pause(100);
+  assert(await evaluate('document.getElementById("competitiveRemoteStatus")?.textContent==="Saved in PostgreSQL."'),'Exam attempt saved in PostgreSQL');
+  assert(await evaluate('fetch("/api/quiz-attempts/"+'+JSON.stringify(examId)+').then(r=>r.json()).then(v=>v.id==='+JSON.stringify(examId)+'&&v.answers.length===v.total)'),'Saved exam answers are readable from PostgreSQL');
+  await button('Review Answers','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.querySelector("#competitiveSection")?.textContent.includes("Answer Review")'),'Review shows questions and solutions');
+  await evaluate('localStorage.removeItem("sqlflow.competitive.v1")');await send('Page.reload');await ready();await click('[data-academic-section="competitive"]');
+  for(let i=0;i<30&&!await evaluate('SqlFlow.competitive.getState().history.some(a=>a.id==='+JSON.stringify(examId)+')');i++)await pause(100);
+  assert(await evaluate('SqlFlow.competitive.getState().history.some(a=>a.id==='+JSON.stringify(examId)+')'),'Exam history reloads from PostgreSQL after clearing local storage');
+  await button('Practice / Test','document.getElementById("competitiveSection")');
+  await evaluate('document.querySelector("#competitiveSection select").value="test"');
+  await button('Start Attempt','document.getElementById("competitiveSection")');
+  assert(await evaluate('!document.getElementById("competitiveSection").textContent.includes("Correct answer:")&&!Array.from(document.querySelectorAll("#competitiveSection button")).some(b=>b.textContent==="Check Answer")'),'Test mode hides answer and feedback before submission');
+  await send('Page.reload');await ready();await click('[data-academic-section="competitive"]');await button('Practice / Test','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.getElementById("competitiveSection").textContent.includes("Test Attempt")'),'Unfinished test attempt resumes after reload');
+  await evaluate('window.confirm=()=>true');await button('Submit Attempt','document.getElementById("competitiveSection")');await button('Review Answers','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.getElementById("competitiveSection").textContent.includes("Correct answer:")'),'Test mode reveals solutions only in post-submit review');
+  await click('#closeAcademicBtn');
+  await click('[data-academic-section="references"]');
+  assert(await evaluate('document.querySelectorAll("#referencesList a").length===11'),'References navigation opens 11 links');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  assert(await evaluate('document.documentElement.scrollWidth<=window.innerWidth+1'),'References fit a 390px mobile viewport');
+  await send('Emulation.clearDeviceMetricsOverride');
+  await click('#closeAcademicBtn');
+  await click('[data-academic-section="quiz"]');
+  await evaluate('SqlFlow.quiz.begin({ids:["basics-01"],count:1,mode:"practice"})');
+  await click('#quizSection input[data-option-index="0"]');await button('Check Answer','document.getElementById("quizSection")');
+  await button('Ask AI Tutor (optional)','document.getElementById("quizSection")');
+  assert(await evaluate('document.getElementById("quizSection").textContent.includes("AI Tutor not configured")'),'Existing Quiz offers the optional AI Tutor with an honest unconfigured state');
+  assert(await evaluate('fetch("/api/ai-tutor/status").then(r=>r.json()).then(v=>v.configured===false)'),'AI Tutor reports unconfigured without calling provider');
+  assert(errors.length===0,'No application JavaScript exceptions or console errors');
+  console.log(JSON.stringify({passed:checks.length,checks,consoleErrors:errors},null,2));
+}
+async function publicSmoke(){
+  assert(await evaluate('SqlFlow.quizSync.available()===false'),'Static public mode never probes localhost API');
+  await run('SELECT name FROM students WHERE cgpa > 8 ORDER BY cgpa DESC LIMIT 3;');
+  await click('[data-execution-stage="1"]');await click('#simulationNext');
+  assert(await evaluate('SqlFlow.simulation.getPlayer().state().cursor===1'),'SQL animation advances in static mode');
+  await click('[data-academic-section="quiz"]');
+  await evaluate('window.confirm=()=>true;SqlFlow.quiz.begin({ids:["basics-01"],count:1,mode:"practice"})');
+  await answer(await activeQuestion());await button('Check Answer');await button('Submit Attempt');
+  assert(await evaluate('document.getElementById("quizDatabaseStatus")?.textContent==="Saved in this browser only."'),'Quiz honestly labels browser-only history');
+  const quizId=await evaluate('SqlFlow.quiz.getData().attempt.id');
+  await click('#closeAcademicBtn');await click('[data-academic-section="competitive"]');
+  assert(await evaluate('SqlFlow.competitiveBank.questions.length===75&&document.querySelectorAll("#competitiveSection .competitive-card").length===75'),'All 75 solved exam questions browse publicly');
+  await button('Show Answer and Solution','document.getElementById("competitiveSection")');
+  assert(await evaluate('!!document.querySelector("#competitiveSection .competitive-answer")'),'Public answer reveal works');
+  await button('Practice / Test','document.getElementById("competitiveSection")');await button('Start Attempt','document.getElementById("competitiveSection")');
+  await click('#competitiveSection input[type="radio"]');await button('Check Answer','document.getElementById("competitiveSection")');
+  await button('Submit Attempt','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.getElementById("competitiveRemoteStatus")?.textContent==="Saved in this browser only."'),'Exam honestly labels browser-only history');
+  const examId=await evaluate('SqlFlow.competitive.getState().history.at(-1).id');
+  await button('Review Answers','document.getElementById("competitiveSection")');
+  assert(await evaluate('document.getElementById("competitiveSection").textContent.includes("Correct answer:")'),'Public exam review shows verified solution');
+  await send('Page.reload');await ready();
+  assert(await evaluate('SqlFlow.quiz.getData().history.some(a=>a.id==='+JSON.stringify(quizId)+')'),'Quiz history persists after public reload');
+  await click('[data-academic-section="competitive"]');
+  assert(await evaluate('SqlFlow.competitive.getState().history.some(a=>a.id==='+JSON.stringify(examId)+')'),'Exam history persists after public reload');
+  await click('#closeAcademicBtn');await click('[data-academic-section="references"]');
+  assert(await evaluate('document.querySelectorAll("#referencesList a").length===11'),'Public References links render');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  assert(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),'Public mobile viewport has no horizontal overflow');
+  await send('Emulation.clearDeviceMetricsOverride');
+  assert(errors.length===0,'Static public flow has no application console errors');
+  console.log(JSON.stringify({passed:checks.length,checks,consoleErrors:errors},null,2));
+}
 async function compatibilitySmoke(){
   const demos=await evaluate('SqlFlow.examples.slice(-10,-5).map(example=>({label:example.label,query:example.query}))');
   for(let index=0;index<demos.length;index++){
@@ -112,7 +226,12 @@ async function v14Smoke(){
   assert(errors.length===0,'No JavaScript exceptions or console errors');console.log(JSON.stringify({passed:checks.length,checks,consoleErrors:errors},null,2));
 }
 async function main(){
-  await startBrowser();await connect();await ready();assert(await evaluate('SqlFlow.config.version==="1.4"'),'Local release targets v1.4');
+  await startBrowser();await connect();
+  if(process.argv.includes('--regression')){for(let i=0;i<100;i++){const summary=await evaluate('document.getElementById("summary")?.textContent||""');if(/\d+ of \d+ tests passed\./.test(summary)){const match=summary.match(/(\d+) of (\d+)/);assert(match[1]===match[2],'Full regression: '+summary);assert(errors.length===0,'No regression-page JavaScript exceptions or console errors');console.log(JSON.stringify({passed:Number(match[1]),total:Number(match[2]),consoleErrors:errors},null,2));return;}await pause(100);}throw new Error('Full regression did not finish');}
+  await ready();assert(await evaluate('SqlFlow.config.version==="1.5"'),'Experimental worktree targets v1.5');
+  if(process.argv.includes('--v15-smoke')){await v15Smoke();return;}
+  if(process.argv.includes('--competitive-smoke')){await competitiveSmoke();return;}
+  if(process.argv.includes('--public-smoke')){await publicSmoke();return;}
   if(process.argv.includes('--self-test-failure'))throw new Error('Intentional harness failure to verify screenshot capture');
   if(process.argv.includes('--v14-smoke')){await v14Smoke();return;}
   if(process.argv.includes('--compat-smoke')){await compatibilitySmoke();return;}

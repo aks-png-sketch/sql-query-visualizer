@@ -1516,6 +1516,19 @@ progress { width: 100%; height: 12px; accent-color: var(--blue); }
 .quiz-settings label, #interactiveHelp > label { display: grid; gap: 7px; }
 .quiz-topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; margin: 22px 0; }
 .quiz-answer { margin: 16px 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
+.competitive-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px; margin: 16px 0; }
+.competitive-filters label { display: grid; gap: 6px; }
+.competitive-filters input, .competitive-filters select { width: 100%; min-width: 0; }
+.competitive-list, .references-list { display: grid; gap: 14px; }
+.competitive-card { min-width: 0; overflow-wrap: anywhere; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); margin: 12px 0; }
+.competitive-card h4 { margin: 8px 0; }
+.competitive-meta { color: var(--muted); font-size: .9em; }
+.competitive-choice { margin: 5px 0; }
+.competitive-option { display: flex; gap: 9px; align-items: flex-start; padding: 8px; }
+.competitive-option input { flex: 0 0 auto; }
+.competitive-answer, .competitive-correct { font-weight: 700; color: var(--success, #15803d); }
+.competitive-incorrect { font-weight: 700; color: var(--danger, #b42318); }
+.competitive-card fieldset { min-width: 0; margin: 14px 0; }
 .quiz-answer textarea { width: 100%; min-height: 130px; }
 .quiz-answer input[type="text"], .quiz-answer input:not([type]) { width: 100%; }
 .quiz-option { display: flex; align-items: baseline; gap: 12px; margin: 10px 0; padding: 12px; border-radius: 8px; background: var(--panel-alt); overflow-wrap: anywhere; }
